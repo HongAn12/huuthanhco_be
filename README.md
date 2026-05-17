@@ -1,6 +1,6 @@
 # Huu Thanh CMS API
 
-Backend API riêng cho website Hữu Thành. API dùng Node.js, Express và MySQL để lưu nội dung CMS: tin tức, dự án và tuyển dụng.
+Backend API riêng cho website Hữu Thành. API dùng Node.js, Express và PostgreSQL/Neon để lưu nội dung CMS: tin tức, dự án và tuyển dụng.
 
 ## Chạy local
 
@@ -68,4 +68,19 @@ Sau đó frontend có thể gọi:
 GET http://localhost:4000/api/cms
 POST http://localhost:4000/api/cms
 DELETE http://localhost:4000/api/cms
+```
+
+## Kết nối Neon PostgreSQL
+
+Lấy connection string từ Neon rồi đặt vào `.env`:
+
+```env
+DATABASE_URL=postgresql://USER:PASSWORD@HOST.neon.tech/DBNAME?sslmode=require
+```
+
+Sau đó chạy:
+
+```bash
+npm run db:init
+npm run dev
 ```

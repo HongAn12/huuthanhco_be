@@ -1,15 +1,16 @@
 services:
-  mysql:
-    image: mysql:8.4
-    container_name: huuthanhco-mysql
+  postgres:
+    image: postgres:17
+    container_name: huuthanhco-postgres
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: secret
-      MYSQL_DATABASE: huuthanh_cms
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: huuthanh_cms
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - huuthanhco_mysql:/var/lib/mysql
+      - huuthanhco_postgres:/var/lib/postgresql/data
 
 volumes:
-  huuthanhco_mysql:
+  huuthanhco_postgres:

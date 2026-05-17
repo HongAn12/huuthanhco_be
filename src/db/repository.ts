@@ -1,8 +1,7 @@
-import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "./pool.js";
 import type { CmsContent, Job, NewsItem, Project } from "../types.js";
 
-type NewsRow = RowDataPacket & {
+type NewsRow = {
   id: string;
   title: string;
   title_en: string;
@@ -17,7 +16,7 @@ type NewsRow = RowDataPacket & {
   content_en: string;
 };
 
-type ProjectRow = RowDataPacket & {
+type ProjectRow = {
   id: string;
   name: string;
   name_en: string;
@@ -30,7 +29,7 @@ type ProjectRow = RowDataPacket & {
   description_en: string;
 };
 
-type JobRow = RowDataPacket & {
+type JobRow = {
   id: string;
   title: string;
   title_en: string;
@@ -40,8 +39,8 @@ type JobRow = RowDataPacket & {
   salary: string;
   description: string;
   description_en: string;
-  requirements: string | string[];
-  requirements_en: string | string[];
+  requirements: unknown;
+  requirements_en: unknown;
 };
 
 function toDateString(value: Date | string) {
@@ -49,8 +48,10 @@ function toDateString(value: Date | string) {
   return String(value).slice(0, 10);
 }
 
-function parseJsonArray(value: string | string[]) {
-  if (Array.isArray(value)) return value;
+function parseJsonArray(value: unknown) {
+  if (Array.isArray(value)) return value.map(String);
+  if (typeof value !== "string") return [];
+
   try {
     const parsed = JSON.parse(value) as unknown;
     return Array.isArray(parsed) ? parsed.map(String) : [];
@@ -108,18 +109,18 @@ function mapJob(row: JobRow): Job {
 }
 
 export async function listNews() {
-  const [rows] = await pool.query<NewsRow[]>("SELECT * FROM news ORDER BY published_date DESC, updated_at DESC");
-  return rows.map(mapNews);
+  const result = await pool.query<NewsRow>("SELECT * FROM news ORDER BY published_date DESC, updated_at DESC");
+  return result.rows.map(mapNews);
 }
 
 export async function listProjects() {
-  const [rows] = await pool.query<ProjectRow[]>("SELECT * FROM projects ORDER BY year DESC, updated_at DESC");
-  return rows.map(mapProject);
+  const result = await pool.query<ProjectRow>("SELECT * FROM projects ORDER BY year DESC, updated_at DESC");
+  return result.rows.map(mapProject);
 }
 
 export async function listJobs() {
-  const [rows] = await pool.query<JobRow[]>("SELECT * FROM jobs ORDER BY updated_at DESC");
-  return rows.map(mapJob);
+  const result = await pool.query<JobRow>("SELECT * FROM jobs ORDER BY updated_at DESC");
+  return result.rows.map(mapJob);
 }
 
 export async function getCmsContent(): Promise<CmsContent> {
@@ -128,74 +129,129 @@ export async function getCmsContent(): Promise<CmsContent> {
 }
 
 export async function upsertNews(item: NewsItem) {
-  await pool.execute<ResultSetHeader>(
+  await pool.query(
     `INSERT INTO news
       (id, title, title_en, slug, published_date, category, category_en, thumbnail, excerpt, excerpt_en, content, content_en)
      VALUES
-      (:id, :title, :titleEn, :slug, :date, :category, :categoryEn, :thumbnail, :excerpt, :excerptEn, :content, :contentEn)
-     ON DUPLICATE KEY UPDATE
-      title = VALUES(title), title_en = VALUES(title_en), slug = VALUES(slug),
-      published_date = VALUES(published_date), category = VALUES(category), category_en = VALUES(category_en),
-      thumbnail = VALUES(thumbnail), excerpt = VALUES(excerpt), excerpt_en = VALUES(excerpt_en),
-      content = VALUES(content), content_en = VALUES(content_en)`,
-    item
+      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+     ON CONFLICT (id) DO UPDATE SET
+      title = EXCLUDED.title,
+      title_en = EXCLUDED.title_en,
+      slug = EXCLUDED.slug,
+      published_date = EXCLUDED.published_date,
+      category = EXCLUDED.category,
+      category_en = EXCLUDED.category_en,
+      thumbnail = EXCLUDED.thumbnail,
+      excerpt = EXCLUDED.excerpt,
+      excerpt_en = EXCLUDED.excerpt_en,
+      content = EXCLUDED.content,
+      content_en = EXCLUDED.content_en,
+      updated_at = CURRENT_TIMESTAMP`,
+    [
+      item.id,
+      item.title,
+      item.titleEn,
+      item.slug,
+      item.date,
+      item.category,
+      item.categoryEn,
+      item.thumbnail,
+      item.excerpt,
+      item.excerptEn,
+      item.content,
+      item.contentEn,
+    ]
   );
   return item;
 }
 
 export async function upsertProject(item: Project) {
-  await pool.execute<ResultSetHeader>(
+  await pool.query(
     `INSERT INTO projects
       (id, name, name_en, location, year, category, category_en, image, description, description_en)
      VALUES
-      (:id, :name, :nameEn, :location, :year, :category, :categoryEn, :image, :description, :descriptionEn)
-     ON DUPLICATE KEY UPDATE
-      name = VALUES(name), name_en = VALUES(name_en), location = VALUES(location), year = VALUES(year),
-      category = VALUES(category), category_en = VALUES(category_en), image = VALUES(image),
-      description = VALUES(description), description_en = VALUES(description_en)`,
-    item
+      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     ON CONFLICT (id) DO UPDATE SET
+      name = EXCLUDED.name,
+      name_en = EXCLUDED.name_en,
+      location = EXCLUDED.location,
+      year = EXCLUDED.year,
+      category = EXCLUDED.category,
+      category_en = EXCLUDED.category_en,
+      image = EXCLUDED.image,
+      description = EXCLUDED.description,
+      description_en = EXCLUDED.description_en,
+      updated_at = CURRENT_TIMESTAMP`,
+    [
+      item.id,
+      item.name,
+      item.nameEn,
+      item.location,
+      item.year,
+      item.category,
+      item.categoryEn,
+      item.image,
+      item.description,
+      item.descriptionEn,
+    ]
   );
   return item;
 }
 
 export async function upsertJob(item: Job) {
-  await pool.execute<ResultSetHeader>(
+  await pool.query(
     `INSERT INTO jobs
       (id, title, title_en, location, type, type_en, salary, description, description_en, requirements, requirements_en)
      VALUES
-      (:id, :title, :titleEn, :location, :type, :typeEn, :salary, :description, :descriptionEn, :requirementsJson, :requirementsEnJson)
-     ON DUPLICATE KEY UPDATE
-      title = VALUES(title), title_en = VALUES(title_en), location = VALUES(location),
-      type = VALUES(type), type_en = VALUES(type_en), salary = VALUES(salary),
-      description = VALUES(description), description_en = VALUES(description_en),
-      requirements = VALUES(requirements), requirements_en = VALUES(requirements_en)`,
-    {
-      ...item,
-      requirementsJson: JSON.stringify(item.requirements),
-      requirementsEnJson: JSON.stringify(item.requirementsEn),
-    }
+      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb)
+     ON CONFLICT (id) DO UPDATE SET
+      title = EXCLUDED.title,
+      title_en = EXCLUDED.title_en,
+      location = EXCLUDED.location,
+      type = EXCLUDED.type,
+      type_en = EXCLUDED.type_en,
+      salary = EXCLUDED.salary,
+      description = EXCLUDED.description,
+      description_en = EXCLUDED.description_en,
+      requirements = EXCLUDED.requirements,
+      requirements_en = EXCLUDED.requirements_en,
+      updated_at = CURRENT_TIMESTAMP`,
+    [
+      item.id,
+      item.title,
+      item.titleEn,
+      item.location,
+      item.type,
+      item.typeEn,
+      item.salary,
+      item.description,
+      item.descriptionEn,
+      JSON.stringify(item.requirements),
+      JSON.stringify(item.requirementsEn),
+    ]
   );
   return item;
 }
 
 export async function deleteItem(table: "news" | "projects" | "jobs", id: string) {
-  const [result] = await pool.execute<ResultSetHeader>(`DELETE FROM ${table} WHERE id = :id`, { id });
-  return result.affectedRows > 0;
+  const result = await pool.query(`DELETE FROM ${table} WHERE id = $1`, [id]);
+  return (result.rowCount ?? 0) > 0;
 }
 
 export async function replaceCmsContent(content: CmsContent) {
-  const connection = await pool.getConnection();
+  const client = await pool.connect();
+
   try {
-    await connection.beginTransaction();
-    await connection.query("DELETE FROM news");
-    await connection.query("DELETE FROM projects");
-    await connection.query("DELETE FROM jobs");
-    await connection.commit();
+    await client.query("BEGIN");
+    await client.query("DELETE FROM news");
+    await client.query("DELETE FROM projects");
+    await client.query("DELETE FROM jobs");
+    await client.query("COMMIT");
   } catch (error) {
-    await connection.rollback();
+    await client.query("ROLLBACK");
     throw error;
   } finally {
-    connection.release();
+    client.release();
   }
 
   await Promise.all([
