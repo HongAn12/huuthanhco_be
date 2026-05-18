@@ -327,7 +327,7 @@ export const openApiSpec = {
         in: "path",
         required: true,
         schema: { type: "string" },
-        example: "news-2026-001",
+        example: "11111111-1111-4111-8111-111111111111",
       },
     },
     responses: {
@@ -370,7 +370,7 @@ export const openApiSpec = {
       NewsItem: {
         type: "object",
         properties: {
-          id: { type: "string", example: "news-2026-001" },
+          id: { type: "string", format: "uuid", example: "11111111-1111-4111-8111-111111111111" },
           title: { type: "string", example: "Hữu Thành cập nhật năng lực thi công" },
           titleEn: { type: "string", example: "Huu Thanh updates construction capabilities" },
           slug: { type: "string", example: "huu-thanh-cap-nhat-nang-luc-thi-cong" },
@@ -388,7 +388,7 @@ export const openApiSpec = {
       Project: {
         type: "object",
         properties: {
-          id: { type: "string", example: "project-2026-001" },
+          id: { type: "string", format: "uuid", example: "22222222-2222-4222-8222-222222222222" },
           name: { type: "string", example: "Bến số 3 Dung Quất" },
           nameEn: { type: "string", example: "Dung Quat Berth No. 3" },
           location: { type: "string", example: "Quảng Ngãi" },
@@ -404,7 +404,7 @@ export const openApiSpec = {
       Job: {
         type: "object",
         properties: {
-          id: { type: "string", example: "job-2026-001" },
+          id: { type: "string", format: "uuid", example: "33333333-3333-4333-8333-333333333333" },
           title: { type: "string", example: "Kỹ sư xây dựng thủy lợi" },
           titleEn: { type: "string", example: "Hydraulic Construction Engineer" },
           location: { type: "string", example: "TP. Hồ Chí Minh / Công trình" },
