@@ -1,5 +1,10 @@
+import type { PoolClient, QueryResult } from "pg";
 import { pool } from "./pool.js";
 import type { CmsContent, Job, NewsItem, Project } from "../types.js";
+
+type QueryExecutor = {
+  query: (text: string, values?: unknown[]) => Promise<QueryResult>;
+};
 
 type NewsRow = {
   id: string;
@@ -44,7 +49,12 @@ type JobRow = {
 };
 
 function toDateString(value: Date | string) {
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, "0");
+    const day = String(value.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
   return String(value).slice(0, 10);
 }
 
@@ -58,6 +68,16 @@ function parseJsonArray(value: unknown) {
   } catch {
     return [];
   }
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function mapNews(row: NewsRow): NewsItem {
@@ -128,8 +148,8 @@ export async function getCmsContent(): Promise<CmsContent> {
   return { news, projects, jobs };
 }
 
-export async function upsertNews(item: NewsItem) {
-  await pool.query(
+export async function upsertNews(item: NewsItem, executor: QueryExecutor = pool) {
+  await executor.query(
     `INSERT INTO news
       (id, title, title_en, slug, published_date, category, category_en, thumbnail, excerpt, excerpt_en, content, content_en)
      VALUES
@@ -165,15 +185,20 @@ export async function upsertNews(item: NewsItem) {
   return item;
 }
 
-export async function upsertProject(item: Project) {
-  await pool.query(
+export async function upsertProject(item: Project, executor: QueryExecutor = pool) {
+  const slug = slugify(item.name);
+  const slugEn = slugify(item.nameEn || item.name);
+
+  await executor.query(
     `INSERT INTO projects
-      (id, name, name_en, location, year, category, category_en, image, description, description_en)
+      (id, name, name_en, slug, slug_en, location, year, category, category_en, image, description, description_en)
      VALUES
-      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name,
       name_en = EXCLUDED.name_en,
+      slug = EXCLUDED.slug,
+      slug_en = EXCLUDED.slug_en,
       location = EXCLUDED.location,
       year = EXCLUDED.year,
       category = EXCLUDED.category,
@@ -186,6 +211,8 @@ export async function upsertProject(item: Project) {
       item.id,
       item.name,
       item.nameEn,
+      slug,
+      slugEn,
       item.location,
       item.year,
       item.category,
@@ -198,15 +225,20 @@ export async function upsertProject(item: Project) {
   return item;
 }
 
-export async function upsertJob(item: Job) {
-  await pool.query(
+export async function upsertJob(item: Job, executor: QueryExecutor = pool) {
+  const slug = slugify(item.title);
+  const slugEn = slugify(item.titleEn || item.title);
+
+  await executor.query(
     `INSERT INTO jobs
-      (id, title, title_en, location, type, type_en, salary, description, description_en, requirements, requirements_en)
+      (id, title, title_en, slug, slug_en, location, type, type_en, salary, description, description_en, requirements, requirements_en)
      VALUES
-      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11::jsonb)
+      ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb)
      ON CONFLICT (id) DO UPDATE SET
       title = EXCLUDED.title,
       title_en = EXCLUDED.title_en,
+      slug = EXCLUDED.slug,
+      slug_en = EXCLUDED.slug_en,
       location = EXCLUDED.location,
       type = EXCLUDED.type,
       type_en = EXCLUDED.type_en,
@@ -220,6 +252,8 @@ export async function upsertJob(item: Job) {
       item.id,
       item.title,
       item.titleEn,
+      slug,
+      slugEn,
       item.location,
       item.type,
       item.typeEn,
@@ -246,6 +280,11 @@ export async function replaceCmsContent(content: CmsContent) {
     await client.query("DELETE FROM news");
     await client.query("DELETE FROM projects");
     await client.query("DELETE FROM jobs");
+
+    for (const item of content.news) await upsertNews(item, client as PoolClient);
+    for (const item of content.projects) await upsertProject(item, client as PoolClient);
+    for (const item of content.jobs) await upsertJob(item, client as PoolClient);
+
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
@@ -253,12 +292,6 @@ export async function replaceCmsContent(content: CmsContent) {
   } finally {
     client.release();
   }
-
-  await Promise.all([
-    ...content.news.map(upsertNews),
-    ...content.projects.map(upsertProject),
-    ...content.jobs.map(upsertJob),
-  ]);
 
   return getCmsContent();
 }
