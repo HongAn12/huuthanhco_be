@@ -1,13 +1,19 @@
 import cors from "cors";
 import express, { type ErrorRequestHandler } from "express";
+import swaggerUi from "swagger-ui-express";
 import { ZodError } from "zod";
 import { env } from "./env.js";
+import { openApiSpec } from "./openapi.js";
 import { cmsRouter } from "./routes/cms.js";
 
 const app = express();
 
 app.use(cors({ origin: env.corsOrigin, credentials: true }));
 app.use(express.json({ limit: "10mb" }));
+app.get("/openapi.json", (_req, res) => res.json(openApiSpec));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiSpec, {
+  customSiteTitle: "Huu Thanh CMS API Docs",
+}));
 app.use("/api", cmsRouter);
 
 app.use((_req, res) => {
@@ -28,4 +34,5 @@ app.use(errorHandler);
 
 app.listen(env.port, () => {
   console.log(`Huu Thanh API running at http://localhost:${env.port}`);
+  console.log(`Swagger UI running at http://localhost:${env.port}/api-docs`);
 });

@@ -18,6 +18,18 @@ API chạy mặc định ở:
 http://localhost:4000
 ```
 
+Swagger UI:
+
+```txt
+http://localhost:4000/api-docs
+```
+
+OpenAPI JSON:
+
+```txt
+http://localhost:4000/openapi.json
+```
+
 ## Endpoints chính
 
 ```txt
