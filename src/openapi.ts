@@ -1,438 +1,630 @@
-export const openApiSpec = {
-  openapi: "3.1.0",
+export const openApiDocument = {
+  openapi: "3.0.3",
   info: {
     title: "Huu Thanh CMS API",
-    version: "1.0.0",
-    description: "API quản lý nội dung CMS cho website Công ty Cổ phần Xây dựng Hữu Thành.",
+    version: "0.1.0",
+    description: "Backend API for Huu Thanh CMS content, admin auth, forms, settings, and media.",
   },
   servers: [
     {
       url: "http://localhost:4000",
-      description: "Local development server",
+      description: "Local development",
     },
   ],
   tags: [
-    { name: "System", description: "Kiểm tra trạng thái API" },
-    { name: "CMS", description: "Đồng bộ toàn bộ nội dung CMS" },
-    { name: "News", description: "Quản lý tin tức" },
-    { name: "Projects", description: "Quản lý dự án" },
-    { name: "Jobs", description: "Quản lý tuyển dụng" },
+    { name: "Health" },
+    { name: "Auth" },
+    { name: "CMS" },
+    { name: "News" },
+    { name: "Projects" },
+    { name: "Jobs" },
+    { name: "Consultations" },
+    { name: "Job Applications" },
+    { name: "Settings" },
+    { name: "Media" },
   ],
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+      },
+    },
+    schemas: {
+      Error: {
+        type: "object",
+        properties: {
+          error: { type: "string" },
+        },
+      },
+      LoginRequest: {
+        type: "object",
+        required: ["email", "password"],
+        properties: {
+          email: { type: "string", format: "email", example: "admin@huuthanhco.com" },
+          password: { type: "string", example: "Admin@2024!!" },
+        },
+      },
+      AuthTokens: {
+        type: "object",
+        properties: {
+          accessToken: { type: "string" },
+          refreshToken: { type: "string" },
+        },
+      },
+      AdminUser: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          email: { type: "string", format: "email" },
+          fullName: { type: "string", nullable: true },
+          phone: { type: "string", nullable: true },
+          role: { type: "string", enum: ["super_admin", "editor", "hr", "viewer"] },
+          status: { type: "string" },
+        },
+      },
+      News: {
+        type: "object",
+        required: ["id", "title", "titleEn", "slug", "date", "category", "categoryEn", "thumbnail"],
+        properties: {
+          id: { type: "string", format: "uuid" },
+          title: { type: "string" },
+          titleEn: { type: "string" },
+          slug: { type: "string" },
+          date: { type: "string", example: "2026-05-18" },
+          category: { type: "string" },
+          categoryEn: { type: "string" },
+          thumbnail: { type: "string" },
+          excerpt: { type: "string" },
+          excerptEn: { type: "string" },
+          content: { type: "string" },
+          contentEn: { type: "string" },
+        },
+      },
+      Project: {
+        type: "object",
+        required: ["id", "name", "nameEn", "location", "year", "category", "categoryEn", "image"],
+        properties: {
+          id: { type: "string", format: "uuid" },
+          name: { type: "string" },
+          nameEn: { type: "string" },
+          location: { type: "string" },
+          year: { type: "integer", example: 2026 },
+          category: { type: "string" },
+          categoryEn: { type: "string" },
+          image: { type: "string" },
+          description: { type: "string" },
+          descriptionEn: { type: "string" },
+        },
+      },
+      ProjectImage: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          projectId: { type: "string", format: "uuid" },
+          url: { type: "string" },
+          caption: { type: "string" },
+          captionEn: { type: "string" },
+          sortOrder: { type: "integer" },
+        },
+      },
+      Job: {
+        type: "object",
+        required: ["id", "title", "titleEn", "location", "type", "typeEn", "salary"],
+        properties: {
+          id: { type: "string", format: "uuid" },
+          title: { type: "string" },
+          titleEn: { type: "string" },
+          location: { type: "string" },
+          type: { type: "string" },
+          typeEn: { type: "string" },
+          salary: { type: "string" },
+          description: { type: "string" },
+          descriptionEn: { type: "string" },
+          requirements: { type: "array", items: { type: "string" } },
+          requirementsEn: { type: "array", items: { type: "string" } },
+        },
+      },
+      CmsContent: {
+        type: "object",
+        properties: {
+          news: { type: "array", items: { $ref: "#/components/schemas/News" } },
+          projects: { type: "array", items: { $ref: "#/components/schemas/Project" } },
+          jobs: { type: "array", items: { $ref: "#/components/schemas/Job" } },
+        },
+      },
+      Consultation: {
+        type: "object",
+        required: ["name", "phone"],
+        properties: {
+          id: { type: "string", format: "uuid", readOnly: true },
+          name: { type: "string" },
+          phone: { type: "string" },
+          email: { type: "string", format: "email" },
+          service: { type: "string" },
+          message: { type: "string" },
+          status: { type: "string", enum: ["new", "read", "done"], readOnly: true },
+        },
+      },
+      JobApplication: {
+        type: "object",
+        required: ["fullName", "phone"],
+        properties: {
+          id: { type: "string", format: "uuid", readOnly: true },
+          jobId: { type: "string", format: "uuid", nullable: true },
+          fullName: { type: "string" },
+          phone: { type: "string" },
+          email: { type: "string", format: "email" },
+          positionApplied: { type: "string" },
+          cvFileUrl: { type: "string", format: "uri" },
+          message: { type: "string" },
+          status: { type: "string", enum: ["new", "reviewing", "interviewed", "hired", "rejected"], readOnly: true },
+        },
+      },
+      Setting: {
+        type: "object",
+        properties: {
+          key: { type: "string" },
+          value: { type: "string", nullable: true },
+          valueEn: { type: "string", nullable: true },
+          type: { type: "string", enum: ["text", "html", "json", "number", "boolean"] },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      MediaFile: {
+        type: "object",
+        required: ["fileName", "fileUrl"],
+        properties: {
+          id: { type: "string", format: "uuid", readOnly: true },
+          fileName: { type: "string" },
+          fileUrl: { type: "string", format: "uri" },
+          fileType: { type: "string" },
+          fileSize: { type: "integer" },
+          width: { type: "integer" },
+          height: { type: "integer" },
+          folder: { type: "string" },
+          altText: { type: "string" },
+          altTextEn: { type: "string" },
+        },
+      },
+    },
+  },
   paths: {
     "/api/health": {
       get: {
-        tags: ["System"],
-        summary: "Kiểm tra API",
+        tags: ["Health"],
+        summary: "Health check",
         responses: {
-          "200": {
-            description: "API đang hoạt động",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/HealthResponse" },
+          200: {
+            description: "API is healthy",
+          },
+        },
+      },
+    },
+    "/api/auth/login": {
+      post: {
+        tags: ["Auth"],
+        summary: "Login",
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/LoginRequest" } } },
+        },
+        responses: {
+          200: { description: "Logged in" },
+          401: { description: "Invalid credentials", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+        },
+      },
+    },
+    "/api/auth/refresh": {
+      post: {
+        tags: ["Auth"],
+        summary: "Refresh access token",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["refreshToken"],
+                properties: { refreshToken: { type: "string" } },
               },
             },
           },
         },
+        responses: { 200: { description: "New tokens", content: { "application/json": { schema: { $ref: "#/components/schemas/AuthTokens" } } } } },
+      },
+    },
+    "/api/auth/logout": {
+      post: {
+        tags: ["Auth"],
+        summary: "Logout",
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: { type: "object", properties: { refreshToken: { type: "string" } } },
+            },
+          },
+        },
+        responses: { 204: { description: "Logged out" } },
+      },
+    },
+    "/api/auth/me": {
+      get: {
+        tags: ["Auth"],
+        summary: "Get current user payload",
+        security: [{ bearerAuth: [] }],
+        responses: { 200: { description: "Current auth payload" } },
+      },
+    },
+    "/api/auth/users": {
+      get: {
+        tags: ["Auth"],
+        summary: "List admin users",
+        security: [{ bearerAuth: [] }],
+        responses: { 200: { description: "Admin users", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/AdminUser" } } } } } },
+      },
+      post: {
+        tags: ["Auth"],
+        summary: "Create admin user",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                allOf: [
+                  { $ref: "#/components/schemas/AdminUser" },
+                  { type: "object", required: ["email", "password", "fullName"], properties: { password: { type: "string", minLength: 8 } } },
+                ],
+              },
+            },
+          },
+        },
+        responses: { 201: { description: "Created" } },
       },
     },
     "/api/cms": {
       get: {
         tags: ["CMS"],
-        summary: "Lấy toàn bộ nội dung CMS",
-        responses: {
-          "200": {
-            description: "Danh sách tin tức, dự án và tuyển dụng",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/CmsContent" },
-              },
-            },
-          },
-        },
+        summary: "Get all CMS content",
+        responses: { 200: { description: "CMS content", content: { "application/json": { schema: { $ref: "#/components/schemas/CmsContent" } } } } },
       },
       post: {
         tags: ["CMS"],
-        summary: "Thay thế toàn bộ nội dung CMS",
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/CmsContent" },
-            },
-          },
-        },
-        responses: {
-          "200": {
-            description: "Nội dung CMS sau khi lưu",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/CmsContent" },
-              },
-            },
-          },
-          "400": { $ref: "#/components/responses/ValidationError" },
-        },
+        summary: "Replace CMS content",
+        security: [{ bearerAuth: [] }],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CmsContent" } } } },
+        responses: { 200: { description: "Saved" } },
       },
       delete: {
         tags: ["CMS"],
-        summary: "Xóa toàn bộ nội dung CMS",
-        responses: {
-          "200": {
-            description: "CMS rỗng sau khi xóa",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/CmsContent" },
-              },
-            },
-          },
-        },
+        summary: "Delete all CMS content",
+        security: [{ bearerAuth: [] }],
+        responses: { 204: { description: "Deleted" } },
       },
     },
     "/api/news": {
       get: {
         tags: ["News"],
-        summary: "Danh sách tin tức",
-        responses: {
-          "200": {
-            description: "Danh sách tin tức",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "array",
-                  items: { $ref: "#/components/schemas/NewsItem" },
-                },
-              },
-            },
-          },
-        },
+        summary: "List news",
+        responses: { 200: { description: "News list", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/News" } } } } } },
       },
       post: {
         tags: ["News"],
-        summary: "Tạo hoặc cập nhật tin tức",
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/NewsItem" },
-            },
-          },
-        },
-        responses: {
-          "201": {
-            description: "Tin tức đã lưu",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/NewsItem" },
-              },
-            },
-          },
-          "400": { $ref: "#/components/responses/ValidationError" },
-        },
+        summary: "Create or update news",
+        security: [{ bearerAuth: [] }],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/News" } } } },
+        responses: { 201: { description: "Saved" } },
+      },
+    },
+    "/api/news/{idOrSlug}": {
+      get: {
+        tags: ["News"],
+        summary: "Get news by id or slug",
+        parameters: [{ name: "idOrSlug", in: "path", required: true, schema: { type: "string" } }],
+        responses: { 200: { description: "News item" }, 404: { description: "Not found" } },
       },
     },
     "/api/news/{id}": {
       put: {
         tags: ["News"],
-        summary: "Cập nhật tin tức theo ID",
-        parameters: [{ $ref: "#/components/parameters/IdParam" }],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/NewsItem" },
-            },
-          },
-        },
-        responses: {
-          "200": {
-            description: "Tin tức đã cập nhật",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/NewsItem" },
-              },
-            },
-          },
-          "400": { $ref: "#/components/responses/ValidationError" },
-        },
+        summary: "Update news",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/News" } } } },
+        responses: { 200: { description: "Updated" } },
       },
       delete: {
         tags: ["News"],
-        summary: "Xóa tin tức theo ID",
-        parameters: [{ $ref: "#/components/parameters/IdParam" }],
-        responses: {
-          "204": { description: "Đã xóa" },
-          "404": { description: "Không tìm thấy" },
-        },
+        summary: "Delete news",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: { 204: { description: "Deleted" }, 404: { description: "Not found" } },
       },
     },
     "/api/projects": {
-      get: {
-        tags: ["Projects"],
-        summary: "Danh sách dự án",
-        responses: {
-          "200": {
-            description: "Danh sách dự án",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "array",
-                  items: { $ref: "#/components/schemas/Project" },
-                },
-              },
-            },
-          },
-        },
-      },
+      get: { tags: ["Projects"], summary: "List projects", responses: { 200: { description: "Projects" } } },
       post: {
         tags: ["Projects"],
-        summary: "Tạo hoặc cập nhật dự án",
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/Project" },
-            },
-          },
-        },
-        responses: {
-          "201": {
-            description: "Dự án đã lưu",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/Project" },
-              },
-            },
-          },
-          "400": { $ref: "#/components/responses/ValidationError" },
-        },
+        summary: "Create or update project",
+        security: [{ bearerAuth: [] }],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/Project" } } } },
+        responses: { 201: { description: "Saved" } },
+      },
+    },
+    "/api/projects/{idOrSlug}": {
+      get: {
+        tags: ["Projects"],
+        summary: "Get project by id or slug",
+        parameters: [{ name: "idOrSlug", in: "path", required: true, schema: { type: "string" } }],
+        responses: { 200: { description: "Project" }, 404: { description: "Not found" } },
       },
     },
     "/api/projects/{id}": {
       put: {
         tags: ["Projects"],
-        summary: "Cập nhật dự án theo ID",
-        parameters: [{ $ref: "#/components/parameters/IdParam" }],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/Project" },
-            },
-          },
-        },
-        responses: {
-          "200": {
-            description: "Dự án đã cập nhật",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/Project" },
-              },
-            },
-          },
-          "400": { $ref: "#/components/responses/ValidationError" },
-        },
+        summary: "Update project",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/Project" } } } },
+        responses: { 200: { description: "Updated" } },
       },
       delete: {
         tags: ["Projects"],
-        summary: "Xóa dự án theo ID",
-        parameters: [{ $ref: "#/components/parameters/IdParam" }],
-        responses: {
-          "204": { description: "Đã xóa" },
-          "404": { description: "Không tìm thấy" },
+        summary: "Delete project",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: { 204: { description: "Deleted" } },
+      },
+    },
+    "/api/projects/{id}/images": {
+      get: {
+        tags: ["Projects"],
+        summary: "List project images",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: { 200: { description: "Images", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/ProjectImage" } } } } } },
+      },
+      post: {
+        tags: ["Projects"],
+        summary: "Add project image",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/ProjectImage" } } } },
+        responses: { 201: { description: "Created" } },
+      },
+    },
+    "/api/projects/{id}/images/reorder": {
+      patch: {
+        tags: ["Projects"],
+        summary: "Reorder project images",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { type: "object", required: ["ids"], properties: { ids: { type: "array", items: { type: "string", format: "uuid" } } } } } },
         },
+        responses: { 200: { description: "Reordered" } },
+      },
+    },
+    "/api/projects/{id}/images/{imageId}": {
+      put: {
+        tags: ["Projects"],
+        summary: "Update project image",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+          { name: "imageId", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+        ],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/ProjectImage" } } } },
+        responses: { 200: { description: "Updated" } },
+      },
+      delete: {
+        tags: ["Projects"],
+        summary: "Delete project image",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+          { name: "imageId", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+        ],
+        responses: { 204: { description: "Deleted" } },
       },
     },
     "/api/jobs": {
-      get: {
-        tags: ["Jobs"],
-        summary: "Danh sách tuyển dụng",
-        responses: {
-          "200": {
-            description: "Danh sách tuyển dụng",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "array",
-                  items: { $ref: "#/components/schemas/Job" },
-                },
-              },
-            },
-          },
-        },
-      },
+      get: { tags: ["Jobs"], summary: "List jobs", responses: { 200: { description: "Jobs" } } },
       post: {
         tags: ["Jobs"],
-        summary: "Tạo hoặc cập nhật tuyển dụng",
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/Job" },
-            },
-          },
-        },
-        responses: {
-          "201": {
-            description: "Tin tuyển dụng đã lưu",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/Job" },
-              },
-            },
-          },
-          "400": { $ref: "#/components/responses/ValidationError" },
-        },
+        summary: "Create or update job",
+        security: [{ bearerAuth: [] }],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/Job" } } } },
+        responses: { 201: { description: "Saved" } },
+      },
+    },
+    "/api/jobs/{idOrSlug}": {
+      get: {
+        tags: ["Jobs"],
+        summary: "Get job by id or slug",
+        parameters: [{ name: "idOrSlug", in: "path", required: true, schema: { type: "string" } }],
+        responses: { 200: { description: "Job" }, 404: { description: "Not found" } },
       },
     },
     "/api/jobs/{id}": {
       put: {
         tags: ["Jobs"],
-        summary: "Cập nhật tuyển dụng theo ID",
-        parameters: [{ $ref: "#/components/parameters/IdParam" }],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/Job" },
-            },
-          },
-        },
-        responses: {
-          "200": {
-            description: "Tin tuyển dụng đã cập nhật",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/Job" },
-              },
-            },
-          },
-          "400": { $ref: "#/components/responses/ValidationError" },
-        },
+        summary: "Update job",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/Job" } } } },
+        responses: { 200: { description: "Updated" } },
       },
       delete: {
         tags: ["Jobs"],
-        summary: "Xóa tuyển dụng theo ID",
-        parameters: [{ $ref: "#/components/parameters/IdParam" }],
-        responses: {
-          "204": { description: "Đã xóa" },
-          "404": { description: "Không tìm thấy" },
-        },
+        summary: "Delete job",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: { 204: { description: "Deleted" } },
       },
     },
-  },
-  components: {
-    parameters: {
-      IdParam: {
-        name: "id",
-        in: "path",
-        required: true,
-        schema: { type: "string" },
-        example: "11111111-1111-4111-8111-111111111111",
+    "/api/consultations": {
+      get: {
+        tags: ["Consultations"],
+        summary: "List consultations",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "status", in: "query", schema: { type: "string", enum: ["new", "read", "done"] } }],
+        responses: { 200: { description: "Consultations" } },
+      },
+      post: {
+        tags: ["Consultations"],
+        summary: "Submit consultation request",
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/Consultation" } } } },
+        responses: { 201: { description: "Submitted" } },
       },
     },
-    responses: {
-      ValidationError: {
-        description: "Dữ liệu gửi lên không hợp lệ",
-        content: {
-          "application/json": {
-            schema: { $ref: "#/components/schemas/ErrorResponse" },
-          },
-        },
+    "/api/consultations/{id}": {
+      patch: {
+        tags: ["Consultations"],
+        summary: "Update consultation status",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: { content: { "application/json": { schema: { type: "object", properties: { status: { type: "string", enum: ["new", "read", "done"] }, note: { type: "string" } } } } } },
+        responses: { 200: { description: "Updated" } },
+      },
+      delete: {
+        tags: ["Consultations"],
+        summary: "Delete consultation",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: { 204: { description: "Deleted" } },
       },
     },
-    schemas: {
-      HealthResponse: {
-        type: "object",
-        properties: {
-          ok: { type: "boolean", example: true },
-          service: { type: "string", example: "huuthanhco-api" },
-        },
-        required: ["ok", "service"],
+    "/api/job-applications": {
+      get: {
+        tags: ["Job Applications"],
+        summary: "List job applications",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "status", in: "query", schema: { type: "string" } },
+          { name: "jobId", in: "query", schema: { type: "string", format: "uuid" } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 50 } },
+          { name: "offset", in: "query", schema: { type: "integer", default: 0 } },
+        ],
+        responses: { 200: { description: "Applications" } },
       },
-      CmsContent: {
-        type: "object",
-        properties: {
-          news: {
-            type: "array",
-            items: { $ref: "#/components/schemas/NewsItem" },
-          },
-          projects: {
-            type: "array",
-            items: { $ref: "#/components/schemas/Project" },
-          },
-          jobs: {
-            type: "array",
-            items: { $ref: "#/components/schemas/Job" },
-          },
-        },
-        required: ["news", "projects", "jobs"],
+      post: {
+        tags: ["Job Applications"],
+        summary: "Submit job application",
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/JobApplication" } } } },
+        responses: { 201: { description: "Submitted" } },
       },
-      NewsItem: {
-        type: "object",
-        properties: {
-          id: { type: "string", format: "uuid", example: "11111111-1111-4111-8111-111111111111" },
-          title: { type: "string", example: "Hữu Thành cập nhật năng lực thi công" },
-          titleEn: { type: "string", example: "Huu Thanh updates construction capabilities" },
-          slug: { type: "string", example: "huu-thanh-cap-nhat-nang-luc-thi-cong" },
-          date: { type: "string", format: "date", example: "2026-05-18" },
-          category: { type: "string", example: "Tin công ty" },
-          categoryEn: { type: "string", example: "Company News" },
-          thumbnail: { type: "string", example: "/uploads/news/example.webp" },
-          excerpt: { type: "string", example: "Mô tả ngắn tin tức." },
-          excerptEn: { type: "string", example: "Short news excerpt." },
-          content: { type: "string", example: "Nội dung chi tiết tin tức." },
-          contentEn: { type: "string", example: "Detailed news content." },
-        },
-        required: ["id", "title", "titleEn", "slug", "date", "category", "categoryEn", "thumbnail", "excerpt", "excerptEn", "content", "contentEn"],
+    },
+    "/api/job-applications/{id}": {
+      get: {
+        tags: ["Job Applications"],
+        summary: "Get job application",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: { 200: { description: "Application" } },
       },
-      Project: {
-        type: "object",
-        properties: {
-          id: { type: "string", format: "uuid", example: "22222222-2222-4222-8222-222222222222" },
-          name: { type: "string", example: "Bến số 3 Dung Quất" },
-          nameEn: { type: "string", example: "Dung Quat Berth No. 3" },
-          location: { type: "string", example: "Quảng Ngãi" },
-          year: { type: "integer", example: 2024 },
-          category: { type: "string", example: "Cảng & cầu cảng" },
-          categoryEn: { type: "string", example: "Ports & Jetties" },
-          image: { type: "string", example: "/uploads/projects/example.webp" },
-          description: { type: "string", example: "Mô tả dự án." },
-          descriptionEn: { type: "string", example: "Project description." },
-        },
-        required: ["id", "name", "nameEn", "location", "year", "category", "categoryEn", "image", "description", "descriptionEn"],
+      patch: {
+        tags: ["Job Applications"],
+        summary: "Update job application status",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: { content: { "application/json": { schema: { type: "object", properties: { status: { type: "string", enum: ["new", "reviewing", "interviewed", "hired", "rejected"] }, note: { type: "string" } } } } } },
+        responses: { 200: { description: "Updated" } },
       },
-      Job: {
-        type: "object",
-        properties: {
-          id: { type: "string", format: "uuid", example: "33333333-3333-4333-8333-333333333333" },
-          title: { type: "string", example: "Kỹ sư xây dựng thủy lợi" },
-          titleEn: { type: "string", example: "Hydraulic Construction Engineer" },
-          location: { type: "string", example: "TP. Hồ Chí Minh / Công trình" },
-          type: { type: "string", example: "Toàn thời gian" },
-          typeEn: { type: "string", example: "Full-time" },
-          salary: { type: "string", example: "Thỏa thuận" },
-          description: { type: "string", example: "Mô tả công việc." },
-          descriptionEn: { type: "string", example: "Job description." },
-          requirements: {
-            type: "array",
-            items: { type: "string" },
-            example: ["Tốt nghiệp chuyên ngành liên quan"],
-          },
-          requirementsEn: {
-            type: "array",
-            items: { type: "string" },
-            example: ["Degree in related field"],
-          },
-        },
-        required: ["id", "title", "titleEn", "location", "type", "typeEn", "salary", "description", "descriptionEn", "requirements", "requirementsEn"],
+      delete: {
+        tags: ["Job Applications"],
+        summary: "Delete job application",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: { 204: { description: "Deleted" } },
       },
-      ErrorResponse: {
-        type: "object",
-        properties: {
-          error: { type: "string", example: "Validation failed" },
-          details: { type: "object" },
-        },
-        required: ["error"],
+    },
+    "/api/settings": {
+      get: {
+        tags: ["Settings"],
+        summary: "Get settings",
+        parameters: [
+          { name: "prefix", in: "query", schema: { type: "string" } },
+          { name: "full", in: "query", schema: { type: "string", enum: ["true", "false", "1", "0"] } },
+        ],
+        responses: { 200: { description: "Settings" } },
+      },
+    },
+    "/api/settings/bulk": {
+      post: {
+        tags: ["Settings"],
+        summary: "Bulk save settings",
+        security: [{ bearerAuth: [] }],
+        requestBody: { required: true, content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/Setting" } } } } },
+        responses: { 200: { description: "Saved" } },
+      },
+    },
+    "/api/settings/{key}": {
+      get: {
+        tags: ["Settings"],
+        summary: "Get setting",
+        parameters: [{ name: "key", in: "path", required: true, schema: { type: "string" } }],
+        responses: { 200: { description: "Setting" }, 404: { description: "Not found" } },
+      },
+      put: {
+        tags: ["Settings"],
+        summary: "Upsert setting",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "key", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/Setting" } } } },
+        responses: { 200: { description: "Saved" } },
+      },
+      delete: {
+        tags: ["Settings"],
+        summary: "Delete setting",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "key", in: "path", required: true, schema: { type: "string" } }],
+        responses: { 204: { description: "Deleted" } },
+      },
+    },
+    "/api/media": {
+      get: {
+        tags: ["Media"],
+        summary: "List media files",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "folder", in: "query", schema: { type: "string" } },
+          { name: "fileType", in: "query", schema: { type: "string" } },
+        ],
+        responses: { 200: { description: "Media files" } },
+      },
+      post: {
+        tags: ["Media"],
+        summary: "Create media record",
+        security: [{ bearerAuth: [] }],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/MediaFile" } } } },
+        responses: { 201: { description: "Created" } },
+      },
+    },
+    "/api/media/{id}": {
+      get: {
+        tags: ["Media"],
+        summary: "Get media file",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: { 200: { description: "Media file" } },
+      },
+      put: {
+        tags: ["Media"],
+        summary: "Update media metadata",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/MediaFile" } } } },
+        responses: { 200: { description: "Updated" } },
+      },
+      delete: {
+        tags: ["Media"],
+        summary: "Delete media record",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: { 204: { description: "Deleted" } },
       },
     },
   },

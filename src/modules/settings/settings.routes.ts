@@ -1,0 +1,54 @@
+import { Router } from "express";
+import { z } from "zod";
+import { asyncHandler } from "../../lib/async-handler.js";
+import { requireAuth, requireRole } from "../../middlewares/auth.middleware.js";
+import { settingBulkSchema, settingUpsertSchema } from "../../validators.js";
+import {
+  deleteSetting,
+  getAllSettings,
+  getSetting,
+  getSettingsAsMap,
+  upsertSetting,
+  upsertSettingsBulk,
+} from "./settings.repository.js";
+
+export const settingsRouter = Router();
+
+// Public: lấy toàn bộ settings dạng map { key: value } — dùng cho frontend
+settingsRouter.get("/", asyncHandler(async (req, res) => {
+  const { prefix, full } = z.object({
+    prefix: z.string().optional(),
+    full: z.string().optional(),
+  }).parse(req.query);
+
+  if (full === "1" || full === "true") {
+    res.json(await getAllSettings(prefix));
+  } else {
+    res.json(await getSettingsAsMap(prefix));
+  }
+}));
+
+// Public: lấy 1 setting theo key
+settingsRouter.get("/:key(*)", asyncHandler(async (req, res) => {
+  const setting = await getSetting(req.params["key"] as string);
+  if (!setting) res.status(404).json({ error: "Setting not found" });
+  else res.json(setting);
+}));
+
+// Admin: upsert 1 setting
+settingsRouter.put("/:key(*)", requireAuth, asyncHandler(async (req, res) => {
+  const data = settingUpsertSchema.parse(req.body);
+  res.json(await upsertSetting(req.params["key"] as string, data));
+}));
+
+// Admin: bulk upsert nhiều settings cùng lúc
+settingsRouter.post("/bulk", requireAuth, asyncHandler(async (req, res) => {
+  const items = settingBulkSchema.parse(req.body);
+  res.json(await upsertSettingsBulk(items));
+}));
+
+// Admin: xoá setting (chỉ super_admin)
+settingsRouter.delete("/:key(*)", requireAuth, requireRole("super_admin"), asyncHandler(async (req, res) => {
+  const deleted = await deleteSetting(req.params["key"] as string);
+  res.status(deleted ? 204 : 404).send();
+}));

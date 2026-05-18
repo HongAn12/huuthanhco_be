@@ -8,4 +8,4 @@ const schema = await readFile(schemaPath, "utf8");
 await pool.query(schema);
 await pool.end();
 
-console.log("PostgreSQL schema initialized.");
+console.log("Schema initialized successfully.");
