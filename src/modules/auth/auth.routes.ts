@@ -1,6 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
+import { logActivity } from "../../lib/activity-log.js";
 import { asyncHandler } from "../../lib/async-handler.js";
 import { requireAuth, requireRole } from "../../middlewares/auth.middleware.js";
 import { adminUserSchema, loginSchema } from "../../validators.js";
@@ -72,17 +73,24 @@ authRouter.get("/users", requireAuth, requireRole("super_admin"), asyncHandler(a
 
 authRouter.post("/users", requireAuth, requireRole("super_admin"), asyncHandler(async (req, res) => {
   const data = adminUserSchema.parse(req.body);
-  res.status(201).json(await createAdminUser(data.email, data.password, data.fullName, data.role));
+  const user = await createAdminUser(data.email, data.password, data.fullName, data.role);
+  void logActivity({ req, action: "create", module: "admin-users", targetId: user.id, description: user.email });
+  res.status(201).json(user);
 }));
 
 authRouter.put("/users/:id", requireAuth, requireRole("super_admin"), asyncHandler(async (req, res) => {
   const { fullName, email, password, role } = adminUserSchema.partial().parse(req.body);
   const user = await updateAdminUser(req.params["id"] as string, { fullName, email, password, role });
   if (!user) res.status(404).json({ error: "User not found" });
-  else res.json(user);
+  else {
+    void logActivity({ req, action: "update", module: "admin-users", targetId: user.id, description: user.email });
+    res.json(user);
+  }
 }));
 
 authRouter.delete("/users/:id", requireAuth, requireRole("super_admin"), asyncHandler(async (req, res) => {
-  const deleted = await deleteAdminUser(req.params["id"] as string);
+  const id = req.params["id"] as string;
+  const deleted = await deleteAdminUser(id);
+  if (deleted) void logActivity({ req, action: "delete", module: "admin-users", targetId: id });
   res.status(deleted ? 204 : 404).send();
 }));

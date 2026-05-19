@@ -6,8 +6,12 @@ import { listProjects, upsertProject } from "../projects/projects.repository.js"
 import { listJobs, upsertJob } from "../jobs/jobs.repository.js";
 
 export async function getCmsContent(): Promise<CmsContent> {
-  const [news, projects, jobs] = await Promise.all([listNews(), listProjects(), listJobs()]);
-  return { news, projects, jobs };
+  const [newsRes, projectsRes, jobsRes] = await Promise.all([
+    listNews({ limit: 9999 }),
+    listProjects({ limit: 9999 }),
+    listJobs({ limit: 9999 }),
+  ]);
+  return { news: newsRes.data, projects: projectsRes.data, jobs: jobsRes.data };
 }
 
 export async function replaceCmsContent(content: CmsContent): Promise<CmsContent> {

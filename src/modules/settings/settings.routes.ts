@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { logActivity } from "../../lib/activity-log.js";
 import { asyncHandler } from "../../lib/async-handler.js";
 import { requireAuth, requireRole } from "../../middlewares/auth.middleware.js";
 import { settingBulkSchema, settingUpsertSchema } from "../../validators.js";
@@ -37,18 +38,25 @@ settingsRouter.get("/:key(*)", asyncHandler(async (req, res) => {
 
 // Admin: upsert 1 setting
 settingsRouter.put("/:key(*)", requireAuth, asyncHandler(async (req, res) => {
+  const key = req.params["key"] as string;
   const data = settingUpsertSchema.parse(req.body);
-  res.json(await upsertSetting(req.params["key"] as string, data));
+  const result = await upsertSetting(key, data);
+  void logActivity({ req, action: "update", module: "settings", targetId: key });
+  res.json(result);
 }));
 
 // Admin: bulk upsert nhiều settings cùng lúc
 settingsRouter.post("/bulk", requireAuth, asyncHandler(async (req, res) => {
   const items = settingBulkSchema.parse(req.body);
-  res.json(await upsertSettingsBulk(items));
+  const result = await upsertSettingsBulk(items);
+  void logActivity({ req, action: "bulk-update", module: "settings", description: `${items.length} keys` });
+  res.json(result);
 }));
 
 // Admin: xoá setting (chỉ super_admin)
 settingsRouter.delete("/:key(*)", requireAuth, requireRole("super_admin"), asyncHandler(async (req, res) => {
-  const deleted = await deleteSetting(req.params["key"] as string);
+  const key = req.params["key"] as string;
+  const deleted = await deleteSetting(key);
+  if (deleted) void logActivity({ req, action: "delete", module: "settings", targetId: key });
   res.status(deleted ? 204 : 404).send();
 }));

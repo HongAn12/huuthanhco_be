@@ -264,3 +264,18 @@ CREATE INDEX IF NOT EXISTS idx_consultations_status ON consultation_requests (st
 CREATE INDEX IF NOT EXISTS idx_job_applications_status ON job_applications (status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_media_files_folder ON media_files (folder, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash ON refresh_tokens (token_hash);
+
+CREATE TABLE IF NOT EXISTS admin_activity_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_user_id UUID REFERENCES admin_users(id) ON DELETE SET NULL,
+  action VARCHAR(50) NOT NULL,
+  module VARCHAR(50) NOT NULL,
+  target_id VARCHAR(255),
+  description TEXT,
+  ip_address VARCHAR(100),
+  user_agent TEXT,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_logs_user ON admin_activity_logs (admin_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_module ON admin_activity_logs (module, created_at DESC);
