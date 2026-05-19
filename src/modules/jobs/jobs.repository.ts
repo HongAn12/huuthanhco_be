@@ -55,9 +55,54 @@ function mapJob(row: JobRow): Job {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export async function listJobs(): Promise<Job[]> {
-  const result = await pool.query<JobRow>("SELECT * FROM jobs ORDER BY updated_at DESC");
-  return result.rows.map(mapJob);
+type ListJobsParams = { page?: number; limit?: number; type?: string; location?: string };
+export type ListJobsResult = { data: Job[]; total: number; page: number; limit: number; totalPages: number; hasNextPage: boolean; hasPrevPage: boolean };
+
+export async function listJobs(params: ListJobsParams = {}): Promise<ListJobsResult> {
+  const limit = Math.min(params.limit ?? 20, 100);
+  const page = Math.max(1, params.page ?? 1);
+  const offset = (page - 1) * limit;
+
+  const conditions: string[] = [];
+  const filterValues: unknown[] = [];
+  let i = 1;
+
+  if (params.type) {
+    conditions.push(`(type=$${i} OR type_en=$${i})`);
+    filterValues.push(params.type);
+    i++;
+  }
+  if (params.location) {
+    conditions.push(`location ILIKE $${i++}`);
+    filterValues.push(`%${params.location}%`);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const limitParam = i++;
+  const offsetParam = i;
+
+  const [dataResult, countResult] = await Promise.all([
+    pool.query<JobRow>(
+      `SELECT * FROM jobs ${where} ORDER BY updated_at DESC LIMIT $${limitParam} OFFSET $${offsetParam}`,
+      [...filterValues, limit, offset]
+    ),
+    pool.query<{ count: string }>(
+      `SELECT COUNT(*) FROM jobs ${where}`,
+      filterValues
+    ),
+  ]);
+
+  const total = Number(countResult.rows[0].count);
+  const totalPages = Math.ceil(total / limit);
+  return {
+    data: dataResult.rows.map(mapJob),
+    total,
+    page,
+    limit,
+    totalPages,
+    hasNextPage: page < totalPages,
+    hasPrevPage: page > 1,
+  };
 }
 
 export async function getJob(idOrSlug: string): Promise<Job | null> {

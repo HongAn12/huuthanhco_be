@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
+import { logActivity } from "../../lib/activity-log.js";
 import { asyncHandler } from "../../lib/async-handler.js";
 import { requireAuth } from "../../middlewares/auth.middleware.js";
 import { projectImageSchema, projectSchema } from "../../validators.js";
@@ -14,11 +16,19 @@ import { deleteProject, getProject, listProjects, upsertProject } from "./projec
 
 export const projectsRouter = Router();
 
+const listQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  category: z.string().optional(),
+  year: z.coerce.number().int().optional(),
+});
+
 // --- Dự án ---
 
 // Public
-projectsRouter.get("/", asyncHandler(async (_req, res) => {
-  res.json(await listProjects());
+projectsRouter.get("/", asyncHandler(async (req, res) => {
+  const params = listQuerySchema.parse(req.query);
+  res.json(await listProjects(params));
 }));
 
 projectsRouter.get("/:idOrSlug", asyncHandler(async (req, res) => {
@@ -29,15 +39,21 @@ projectsRouter.get("/:idOrSlug", asyncHandler(async (req, res) => {
 
 // Admin
 projectsRouter.post("/", requireAuth, asyncHandler(async (req, res) => {
-  res.status(201).json(await upsertProject(projectSchema.parse(req.body)));
+  const item = await upsertProject(projectSchema.parse({ ...req.body, id: randomUUID() }));
+  void logActivity({ req, action: "create", module: "projects", targetId: item.id, description: item.name });
+  res.status(201).json(item);
 }));
 
 projectsRouter.put("/:id", requireAuth, asyncHandler(async (req, res) => {
-  res.json(await upsertProject(projectSchema.parse({ ...req.body, id: req.params["id"] })));
+  const item = await upsertProject(projectSchema.parse({ ...req.body, id: req.params["id"] }));
+  void logActivity({ req, action: "update", module: "projects", targetId: item.id, description: item.name });
+  res.json(item);
 }));
 
 projectsRouter.delete("/:id", requireAuth, asyncHandler(async (req, res) => {
-  const deleted = await deleteProject(req.params["id"] as string);
+  const id = req.params["id"] as string;
+  const deleted = await deleteProject(id);
+  if (deleted) void logActivity({ req, action: "delete", module: "projects", targetId: id });
   res.status(deleted ? 204 : 404).send();
 }));
 
@@ -48,24 +64,36 @@ projectsRouter.get("/:id/images", asyncHandler(async (req, res) => {
 }));
 
 projectsRouter.post("/:id/images", requireAuth, asyncHandler(async (req, res) => {
+  const projectId = req.params["id"] as string;
   const data = projectImageSchema.parse(req.body);
-  res.status(201).json(await addProjectImage(req.params["id"] as string, data));
+  const image = await addProjectImage(projectId, data);
+  void logActivity({ req, action: "create", module: "project-images", targetId: projectId });
+  res.status(201).json(image);
 }));
 
 // Reorder đặt trước /:imageId để không bị match nhầm
 projectsRouter.patch("/:id/images/reorder", requireAuth, asyncHandler(async (req, res) => {
+  const projectId = req.params["id"] as string;
   const { ids } = z.object({ ids: z.array(z.string().uuid()) }).parse(req.body);
-  res.json(await reorderProjectImages(req.params["id"] as string, ids));
+  const result = await reorderProjectImages(projectId, ids);
+  void logActivity({ req, action: "reorder", module: "project-images", targetId: projectId });
+  res.json(result);
 }));
 
 projectsRouter.put("/:id/images/:imageId", requireAuth, asyncHandler(async (req, res) => {
+  const imageId = req.params["imageId"] as string;
   const data = projectImageSchema.partial().parse(req.body);
-  const updated = await updateProjectImage(req.params["imageId"] as string, data);
+  const updated = await updateProjectImage(imageId, data);
   if (!updated) res.status(404).json({ error: "Not found" });
-  else res.json(updated);
+  else {
+    void logActivity({ req, action: "update", module: "project-images", targetId: imageId });
+    res.json(updated);
+  }
 }));
 
 projectsRouter.delete("/:id/images/:imageId", requireAuth, asyncHandler(async (req, res) => {
-  const deleted = await deleteProjectImage(req.params["imageId"] as string);
+  const imageId = req.params["imageId"] as string;
+  const deleted = await deleteProjectImage(imageId);
+  if (deleted) void logActivity({ req, action: "delete", module: "project-images", targetId: imageId });
   res.status(deleted ? 204 : 404).send();
 }));

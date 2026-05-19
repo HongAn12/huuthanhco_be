@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { logActivity } from "../../lib/activity-log.js";
 import { asyncHandler } from "../../lib/async-handler.js";
 import { requireAuth } from "../../middlewares/auth.middleware.js";
 import { mediaFileSchema } from "../../validators.js";
@@ -23,17 +24,24 @@ mediaRouter.get("/:id", requireAuth, asyncHandler(async (req, res) => {
 }));
 
 mediaRouter.post("/", requireAuth, asyncHandler(async (req, res) => {
-  res.status(201).json(await createMedia(mediaFileSchema.parse(req.body)));
+  const item = await createMedia(mediaFileSchema.parse(req.body));
+  void logActivity({ req, action: "create", module: "media", targetId: item.id, description: item.fileName });
+  res.status(201).json(item);
 }));
 
 mediaRouter.put("/:id", requireAuth, asyncHandler(async (req, res) => {
   const data = mediaFileSchema.partial().parse(req.body);
   const updated = await updateMedia(req.params["id"] as string, data);
   if (!updated) res.status(404).json({ error: "Not found" });
-  else res.json(updated);
+  else {
+    void logActivity({ req, action: "update", module: "media", targetId: updated.id });
+    res.json(updated);
+  }
 }));
 
 mediaRouter.delete("/:id", requireAuth, asyncHandler(async (req, res) => {
-  const deleted = await deleteMedia(req.params["id"] as string);
+  const id = req.params["id"] as string;
+  const deleted = await deleteMedia(id);
+  if (deleted) void logActivity({ req, action: "delete", module: "media", targetId: id });
   res.status(deleted ? 204 : 404).send();
 }));

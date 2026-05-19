@@ -33,12 +33,13 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-export function requireRole(role: AdminRole) {
+export function requireRole(...roles: AdminRole[]) {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (req.auth?.role !== role) {
-      res.status(403).json({ error: "Forbidden" });
+    const userRole = req.auth?.role;
+    if (userRole === "super_admin" || (userRole && roles.includes(userRole))) {
+      next();
       return;
     }
-    next();
+    res.status(403).json({ error: "Forbidden" });
   };
 }

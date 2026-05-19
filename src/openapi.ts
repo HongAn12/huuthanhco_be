@@ -134,6 +134,42 @@ export const openApiDocument = {
           jobs: { type: "array", items: { $ref: "#/components/schemas/Job" } },
         },
       },
+      PaginatedNews: {
+        type: "object",
+        properties: {
+          data: { type: "array", items: { $ref: "#/components/schemas/News" } },
+          total: { type: "integer", example: 45 },
+          page: { type: "integer", example: 1 },
+          limit: { type: "integer", example: 20 },
+          totalPages: { type: "integer", example: 3 },
+          hasNextPage: { type: "boolean", example: true },
+          hasPrevPage: { type: "boolean", example: false },
+        },
+      },
+      PaginatedProjects: {
+        type: "object",
+        properties: {
+          data: { type: "array", items: { $ref: "#/components/schemas/Project" } },
+          total: { type: "integer", example: 30 },
+          page: { type: "integer", example: 1 },
+          limit: { type: "integer", example: 20 },
+          totalPages: { type: "integer", example: 2 },
+          hasNextPage: { type: "boolean", example: true },
+          hasPrevPage: { type: "boolean", example: false },
+        },
+      },
+      PaginatedJobs: {
+        type: "object",
+        properties: {
+          data: { type: "array", items: { $ref: "#/components/schemas/Job" } },
+          total: { type: "integer", example: 10 },
+          page: { type: "integer", example: 1 },
+          limit: { type: "integer", example: 20 },
+          totalPages: { type: "integer", example: 1 },
+          hasNextPage: { type: "boolean", example: false },
+          hasPrevPage: { type: "boolean", example: false },
+        },
+      },
       Consultation: {
         type: "object",
         required: ["name", "phone"],
@@ -308,14 +344,19 @@ export const openApiDocument = {
       get: {
         tags: ["News"],
         summary: "List news",
-        responses: { 200: { description: "News list", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/News" } } } } } },
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", default: 1, minimum: 1 }, description: "Số trang" },
+          { name: "limit", in: "query", schema: { type: "integer", default: 20, minimum: 1, maximum: 100 }, description: "Số bản ghi mỗi trang" },
+          { name: "category", in: "query", schema: { type: "string" }, description: "Lọc theo danh mục (tiếng Việt hoặc tiếng Anh)" },
+        ],
+        responses: { 200: { description: "Danh sách tin tức (phân trang)", content: { "application/json": { schema: { $ref: "#/components/schemas/PaginatedNews" } } } } },
       },
       post: {
         tags: ["News"],
-        summary: "Create or update news",
+        summary: "Tạo tin tức mới (server tự sinh UUID)",
         security: [{ bearerAuth: [] }],
         requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/News" } } } },
-        responses: { 201: { description: "Saved" } },
+        responses: { 201: { description: "Đã tạo" } },
       },
     },
     "/api/news/{idOrSlug}": {
@@ -344,13 +385,23 @@ export const openApiDocument = {
       },
     },
     "/api/projects": {
-      get: { tags: ["Projects"], summary: "List projects", responses: { 200: { description: "Projects" } } },
+      get: {
+        tags: ["Projects"],
+        summary: "List projects",
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", default: 1, minimum: 1 }, description: "Số trang" },
+          { name: "limit", in: "query", schema: { type: "integer", default: 20, minimum: 1, maximum: 100 }, description: "Số bản ghi mỗi trang" },
+          { name: "category", in: "query", schema: { type: "string" }, description: "Lọc theo danh mục" },
+          { name: "year", in: "query", schema: { type: "integer" }, description: "Lọc theo năm (VD: 2024)" },
+        ],
+        responses: { 200: { description: "Danh sách dự án (phân trang)", content: { "application/json": { schema: { $ref: "#/components/schemas/PaginatedProjects" } } } } },
+      },
       post: {
         tags: ["Projects"],
-        summary: "Create or update project",
+        summary: "Tạo dự án mới (server tự sinh UUID)",
         security: [{ bearerAuth: [] }],
         requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/Project" } } } },
-        responses: { 201: { description: "Saved" } },
+        responses: { 201: { description: "Đã tạo" } },
       },
     },
     "/api/projects/{idOrSlug}": {
@@ -431,13 +482,23 @@ export const openApiDocument = {
       },
     },
     "/api/jobs": {
-      get: { tags: ["Jobs"], summary: "List jobs", responses: { 200: { description: "Jobs" } } },
+      get: {
+        tags: ["Jobs"],
+        summary: "List jobs",
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", default: 1, minimum: 1 }, description: "Số trang" },
+          { name: "limit", in: "query", schema: { type: "integer", default: 20, minimum: 1, maximum: 100 }, description: "Số bản ghi mỗi trang" },
+          { name: "type", in: "query", schema: { type: "string" }, description: "Lọc theo loại công việc (VD: Full-time)" },
+          { name: "location", in: "query", schema: { type: "string" }, description: "Lọc theo địa điểm (tìm kiếm gần đúng)" },
+        ],
+        responses: { 200: { description: "Danh sách việc làm (phân trang)", content: { "application/json": { schema: { $ref: "#/components/schemas/PaginatedJobs" } } } } },
+      },
       post: {
         tags: ["Jobs"],
-        summary: "Create or update job",
+        summary: "Tạo việc làm mới (server tự sinh UUID)",
         security: [{ bearerAuth: [] }],
         requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/Job" } } } },
-        responses: { 201: { description: "Saved" } },
+        responses: { 201: { description: "Đã tạo" } },
       },
     },
     "/api/jobs/{idOrSlug}": {

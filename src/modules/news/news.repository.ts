@@ -46,11 +46,49 @@ function mapNews(row: NewsRow): NewsItem {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export async function listNews(): Promise<NewsItem[]> {
-  const result = await pool.query<NewsRow>(
-    "SELECT * FROM news ORDER BY published_date DESC, updated_at DESC"
-  );
-  return result.rows.map(mapNews);
+type ListNewsParams = { page?: number; limit?: number; category?: string };
+export type ListNewsResult = { data: NewsItem[]; total: number; page: number; limit: number; totalPages: number; hasNextPage: boolean; hasPrevPage: boolean };
+
+export async function listNews(params: ListNewsParams = {}): Promise<ListNewsResult> {
+  const limit = Math.min(params.limit ?? 20, 100);
+  const page = Math.max(1, params.page ?? 1);
+  const offset = (page - 1) * limit;
+
+  const filterValues: unknown[] = [];
+  let i = 1;
+  let where = "";
+
+  if (params.category) {
+    where = `WHERE (category=$${i} OR category_en=$${i})`;
+    filterValues.push(params.category);
+    i++;
+  }
+
+  const limitParam = i++;
+  const offsetParam = i;
+
+  const [dataResult, countResult] = await Promise.all([
+    pool.query<NewsRow>(
+      `SELECT * FROM news ${where} ORDER BY published_date DESC, updated_at DESC LIMIT $${limitParam} OFFSET $${offsetParam}`,
+      [...filterValues, limit, offset]
+    ),
+    pool.query<{ count: string }>(
+      `SELECT COUNT(*) FROM news ${where}`,
+      filterValues
+    ),
+  ]);
+
+  const total = Number(countResult.rows[0].count);
+  const totalPages = Math.ceil(total / limit);
+  return {
+    data: dataResult.rows.map(mapNews),
+    total,
+    page,
+    limit,
+    totalPages,
+    hasNextPage: page < totalPages,
+    hasPrevPage: page > 1,
+  };
 }
 
 export async function getNews(idOrSlug: string): Promise<NewsItem | null> {

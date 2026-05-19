@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"D:\\\\HuuThanhCo-BE\\\\huuthanhco_be\" -Depth 3 | Where-Object { !$_.PSIsContainer } | Select-Object FullName)",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\HuuThanhCo-BE\\\\huuthanhco_be\\\\src\" -Recurse | Where-Object { !$_.PSIsContainer } | Select-Object FullName)",
+      "PowerShell(Head-Object *)",
+      "PowerShell(Get-ChildItem -Path \"D:\\\\HuuThanhCo-BE\\\\huuthanhco_be\" -Recurse | Where-Object { !$_.PSIsContainer -and $_.FullName -notmatch \"node_modules\" } | Select-Object -First 100 -ExpandProperty FullName)"
+    ]
+  }
+}

@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { Router } from "express";
+import { z } from "zod";
 import { logActivity } from "../../lib/activity-log.js";
 import { asyncHandler } from "../../lib/async-handler.js";
 import { requireAuth } from "../../middlewares/auth.middleware.js";
@@ -7,9 +9,16 @@ import { deleteNews, getNews, listNews, upsertNews } from "./news.repository.js"
 
 export const newsRouter = Router();
 
+const listQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  category: z.string().optional(),
+});
+
 // Public
-newsRouter.get("/", asyncHandler(async (_req, res) => {
-  res.json(await listNews());
+newsRouter.get("/", asyncHandler(async (req, res) => {
+  const params = listQuerySchema.parse(req.query);
+  res.json(await listNews(params));
 }));
 
 newsRouter.get("/:idOrSlug", asyncHandler(async (req, res) => {
@@ -20,7 +29,7 @@ newsRouter.get("/:idOrSlug", asyncHandler(async (req, res) => {
 
 // Admin
 newsRouter.post("/", requireAuth, asyncHandler(async (req, res) => {
-  const item = await upsertNews(newsSchema.parse(req.body));
+  const item = await upsertNews(newsSchema.parse({ ...req.body, id: randomUUID() }));
   void logActivity({ req, action: "create", module: "news", targetId: item.id, description: item.title });
   res.status(201).json(item);
 }));
