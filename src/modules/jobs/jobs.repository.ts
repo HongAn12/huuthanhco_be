@@ -1,6 +1,7 @@
 import { pool } from "../../db/pool.js";
+import type { QueryExecutor } from "../../db/pool.js";
+import { slugify, UUID_RE } from "../../lib/slugify.js";
 import type { Job } from "../../validators.js";
-import type { QueryExecutor } from "../../lib/types.js";
 
 type JobRow = {
   id: string;
@@ -15,16 +16,6 @@ type JobRow = {
   requirements: unknown;
   requirements_en: unknown;
 };
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 function parseJsonArray(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String);
@@ -53,8 +44,6 @@ function mapJob(row: JobRow): Job {
   };
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export async function listJobs(): Promise<Job[]> {
   const result = await pool.query<JobRow>("SELECT * FROM jobs ORDER BY updated_at DESC");
   return result.rows.map(mapJob);
@@ -66,10 +55,10 @@ export async function getJob(idOrSlug: string): Promise<Job | null> {
   return result.rows[0] ? mapJob(result.rows[0]) : null;
 }
 
-export async function upsertJob(item: Job, executor: QueryExecutor = pool) {
+export async function upsertJob(item: Job, executor: QueryExecutor = pool): Promise<Job> {
   const slug = slugify(item.title);
   const slugEn = slugify(item.titleEn || item.title);
-  await executor.query(
+  const result = await executor.query<JobRow>(
     `INSERT INTO jobs
       (id,title,title_en,slug,slug_en,location,type,type_en,salary,description,description_en,requirements,requirements_en)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb)
@@ -79,12 +68,13 @@ export async function upsertJob(item: Job, executor: QueryExecutor = pool) {
       type=EXCLUDED.type, type_en=EXCLUDED.type_en, salary=EXCLUDED.salary,
       description=EXCLUDED.description, description_en=EXCLUDED.description_en,
       requirements=EXCLUDED.requirements, requirements_en=EXCLUDED.requirements_en,
-      updated_at=CURRENT_TIMESTAMP`,
+      updated_at=CURRENT_TIMESTAMP
+     RETURNING *`,
     [item.id, item.title, item.titleEn, slug, slugEn, item.location, item.type,
      item.typeEn, item.salary, item.description, item.descriptionEn,
      JSON.stringify(item.requirements), JSON.stringify(item.requirementsEn)]
   );
-  return item;
+  return mapJob(result.rows[0]);
 }
 
 export async function deleteJob(id: string) {

@@ -1,6 +1,7 @@
 import { pool } from "../../db/pool.js";
+import type { QueryExecutor } from "../../db/pool.js";
+import { UUID_RE } from "../../lib/slugify.js";
 import type { NewsItem } from "../../validators.js";
-import type { QueryExecutor } from "../../lib/types.js";
 
 type NewsRow = {
   id: string;
@@ -44,8 +45,6 @@ function mapNews(row: NewsRow): NewsItem {
   };
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export async function listNews(): Promise<NewsItem[]> {
   const result = await pool.query<NewsRow>(
     "SELECT * FROM news ORDER BY published_date DESC, updated_at DESC"
@@ -59,8 +58,8 @@ export async function getNews(idOrSlug: string): Promise<NewsItem | null> {
   return result.rows[0] ? mapNews(result.rows[0]) : null;
 }
 
-export async function upsertNews(item: NewsItem, executor: QueryExecutor = pool) {
-  await executor.query(
+export async function upsertNews(item: NewsItem, executor: QueryExecutor = pool): Promise<NewsItem> {
+  const result = await executor.query<NewsRow>(
     `INSERT INTO news
       (id, title, title_en, slug, published_date, category, category_en, thumbnail, excerpt, excerpt_en, content, content_en)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
@@ -70,11 +69,12 @@ export async function upsertNews(item: NewsItem, executor: QueryExecutor = pool)
       category_en=EXCLUDED.category_en, thumbnail=EXCLUDED.thumbnail,
       excerpt=EXCLUDED.excerpt, excerpt_en=EXCLUDED.excerpt_en,
       content=EXCLUDED.content, content_en=EXCLUDED.content_en,
-      updated_at=CURRENT_TIMESTAMP`,
+      updated_at=CURRENT_TIMESTAMP
+     RETURNING *`,
     [item.id, item.title, item.titleEn, item.slug, item.date, item.category,
      item.categoryEn, item.thumbnail, item.excerpt, item.excerptEn, item.content, item.contentEn]
   );
-  return item;
+  return mapNews(result.rows[0]);
 }
 
 export async function deleteNews(id: string) {

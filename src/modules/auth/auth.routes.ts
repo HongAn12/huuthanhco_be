@@ -9,6 +9,7 @@ import {
   createRefreshToken,
   deleteAdminUser,
   findUserByEmail,
+  findUserById,
   listAdminUsers,
   rotateRefreshToken,
   revokeRefreshToken,
@@ -59,7 +60,9 @@ authRouter.post("/logout", asyncHandler(async (req, res) => {
 }));
 
 authRouter.get("/me", requireAuth, asyncHandler(async (req, res) => {
-  res.json(req.auth);
+  const user = await findUserById(req.auth!.sub);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  res.json(user);
 }));
 
 // Quản lý tài khoản admin (chỉ super_admin)

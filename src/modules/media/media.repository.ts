@@ -38,7 +38,7 @@ export async function listMedia(filters: { folder?: string; fileType?: string } 
   const values: unknown[] = [];
   let i = 1;
   if (filters.folder) { conditions.push(`folder=$${i++}`); values.push(filters.folder); }
-  if (filters.fileType) { conditions.push(`file_type=$${i++}`); values.push(filters.fileType); }
+  if (filters.fileType) { conditions.push(`file_type ILIKE $${i++}`); values.push(`${filters.fileType}%`); }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
   const result = await pool.query<MediaRow>(
     `SELECT * FROM media_files ${where} ORDER BY created_at DESC`,

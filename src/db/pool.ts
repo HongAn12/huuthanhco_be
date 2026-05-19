@@ -1,10 +1,14 @@
 import pg from "pg";
+import type { QueryResult, QueryResultRow } from "pg";
 import { env } from "../config/env.js";
 
 const { Pool } = pg;
 
-// Neon yêu cầu SSL; bỏ sslmode khỏi URL để tránh deprecation warning của pg
-const cleanUrl = env.databaseUrl.replace(/[?&]sslmode=[^&]*/g, "").replace(/[?&]channel_binding=[^&]*/g, "").replace(/\?&/, "?").replace(/\?$/, "");
+const cleanUrl = env.databaseUrl
+  .replace(/[?&]sslmode=[^&]*/g, "")
+  .replace(/[?&]channel_binding=[^&]*/g, "")
+  .replace(/\?&/, "?")
+  .replace(/\?$/, "");
 
 export const pool = new Pool({
   connectionString: cleanUrl,
@@ -21,3 +25,10 @@ export async function checkDbConnection() {
   await client.query("SELECT 1");
   client.release();
 }
+
+export type QueryExecutor = {
+  query<R extends QueryResultRow = QueryResultRow>(
+    text: string,
+    values?: unknown[]
+  ): Promise<QueryResult<R>>;
+};

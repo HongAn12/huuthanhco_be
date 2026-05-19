@@ -1,6 +1,7 @@
 import { pool } from "../../db/pool.js";
+import type { QueryExecutor } from "../../db/pool.js";
+import { slugify, UUID_RE } from "../../lib/slugify.js";
 import type { Project } from "../../validators.js";
-import type { QueryExecutor } from "../../lib/types.js";
 
 type ProjectRow = {
   id: string;
@@ -14,16 +15,6 @@ type ProjectRow = {
   description: string;
   description_en: string;
 };
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 function mapProject(row: ProjectRow): Project {
   return {
@@ -39,8 +30,6 @@ function mapProject(row: ProjectRow): Project {
     descriptionEn: row.description_en,
   };
 }
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function listProjects(): Promise<Project[]> {
   const result = await pool.query<ProjectRow>(
@@ -58,10 +47,10 @@ export async function getProject(idOrSlug: string): Promise<Project | null> {
   return result.rows[0] ? mapProject(result.rows[0]) : null;
 }
 
-export async function upsertProject(item: Project, executor: QueryExecutor = pool) {
+export async function upsertProject(item: Project, executor: QueryExecutor = pool): Promise<Project> {
   const slug = slugify(item.name);
   const slugEn = slugify(item.nameEn || item.name);
-  await executor.query(
+  const result = await executor.query<ProjectRow>(
     `INSERT INTO projects
       (id,name,name_en,slug,slug_en,location,year,category,category_en,image,description,description_en)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
@@ -70,11 +59,12 @@ export async function upsertProject(item: Project, executor: QueryExecutor = poo
       slug_en=EXCLUDED.slug_en, location=EXCLUDED.location, year=EXCLUDED.year,
       category=EXCLUDED.category, category_en=EXCLUDED.category_en,
       image=EXCLUDED.image, description=EXCLUDED.description,
-      description_en=EXCLUDED.description_en, updated_at=CURRENT_TIMESTAMP`,
+      description_en=EXCLUDED.description_en, updated_at=CURRENT_TIMESTAMP
+     RETURNING id,name,name_en,location,year,category,category_en,image,description,description_en`,
     [item.id, item.name, item.nameEn, slug, slugEn, item.location, item.year,
      item.category, item.categoryEn, item.image, item.description, item.descriptionEn]
   );
-  return item;
+  return mapProject(result.rows[0]);
 }
 
 export async function deleteProject(id: string) {
