@@ -645,6 +645,57 @@ export const openApiDocument = {
         responses: { 204: { description: "Deleted" } },
       },
     },
+    "/api/media/upload": {
+      post: {
+        tags: ["Media"],
+        summary: "Upload nhiều ảnh lên Cloudflare R2",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                required: ["files"],
+                properties: {
+                  files: {
+                    type: "array",
+                    items: { type: "string", format: "binary" },
+                    description: "Danh sách file ảnh (tối đa 20 file, mỗi file tối đa 20MB)",
+                  },
+                  folder: {
+                    type: "string",
+                    default: "general",
+                    description: "Thư mục lưu trữ trên R2 (VD: news, projects, general)",
+                  },
+                  altText: { type: "string", description: "Alt text tiếng Việt" },
+                  altTextEn: { type: "string", description: "Alt text tiếng Anh" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: "Upload thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    uploaded: { type: "integer", example: 3, description: "Số file upload thành công" },
+                    failed: { type: "integer", example: 0, description: "Số file thất bại" },
+                    items: { type: "array", items: { $ref: "#/components/schemas/MediaFile" } },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: "Không có file nào được gửi lên" },
+          401: { description: "Chưa đăng nhập" },
+        },
+      },
+    },
     "/api/media": {
       get: {
         tags: ["Media"],

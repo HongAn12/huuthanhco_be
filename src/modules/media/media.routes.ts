@@ -1,12 +1,75 @@
+import multer from "multer";
 import { Router } from "express";
 import { z } from "zod";
 import { logActivity } from "../../lib/activity-log.js";
 import { asyncHandler } from "../../lib/async-handler.js";
+import { uploadToR2 } from "../../lib/r2.js";
 import { requireAuth } from "../../middlewares/auth.middleware.js";
 import { mediaFileSchema } from "../../validators.js";
 import { createMedia, deleteMedia, getMedia, listMedia, updateMedia } from "./media.repository.js";
 
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB mỗi file
+});
+
 export const mediaRouter = Router();
+
+// POST /api/media/upload — upload nhiều ảnh lên R2 song song
+mediaRouter.post(
+  "/upload",
+  requireAuth,
+  upload.array("files", 20),
+  asyncHandler(async (req, res) => {
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) {
+      res.status(400).json({ error: "Không có file nào được gửi lên" });
+      return;
+    }
+
+    const folder = typeof req.body["folder"] === "string" ? req.body["folder"] : "general";
+    const altText = typeof req.body["altText"] === "string" ? req.body["altText"] : "";
+    const altTextEn = typeof req.body["altTextEn"] === "string" ? req.body["altTextEn"] : "";
+
+    // Upload tất cả files lên R2 song song
+    const uploadResults = await Promise.allSettled(
+      files.map((file) => uploadToR2(file.buffer, file.originalname, file.mimetype, folder))
+    );
+
+    // Lưu metadata vào DB cho những file upload thành công, cũng song song
+    const saveResults = await Promise.allSettled(
+      uploadResults.map((result, i) => {
+        if (result.status === "rejected") return Promise.reject(result.reason);
+        const { url, fileName, fileType, fileSize } = result.value;
+        return createMedia(
+          mediaFileSchema.parse({ fileName, fileUrl: url, fileType, fileSize, folder, altText, altTextEn })
+        );
+      })
+    );
+
+    const succeeded = saveResults
+      .map((r, i) => (r.status === "fulfilled" ? r.value : null))
+      .filter(Boolean);
+
+    const failed = saveResults.filter((r) => r.status === "rejected").length;
+
+    if (succeeded.length > 0) {
+      void logActivity({
+        req,
+        action: "create",
+        module: "media",
+        targetId: succeeded[0]!.id,
+        description: `Upload ${succeeded.length} file(s) lên R2`,
+      });
+    }
+
+    res.status(201).json({
+      uploaded: succeeded.length,
+      failed,
+      items: succeeded,
+    });
+  })
+);
 
 // Tất cả media routes đều yêu cầu đăng nhập
 mediaRouter.get("/", requireAuth, asyncHandler(async (req, res) => {
