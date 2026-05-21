@@ -24,6 +24,7 @@ export const projectSchema = z.object({
   category: z.string().min(1),
   categoryEn: z.string().min(1),
   image: z.string().min(1),
+  galleryImages: z.array(z.string().min(1)).default([]),
   description: z.string().default(""),
   descriptionEn: z.string().default(""),
 });

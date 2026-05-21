@@ -94,6 +94,7 @@ export const openApiDocument = {
           category: { type: "string" },
           categoryEn: { type: "string" },
           image: { type: "string" },
+          galleryImages: { type: "array", items: { type: "string" } },
           description: { type: "string" },
           descriptionEn: { type: "string" },
         },
