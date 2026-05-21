@@ -1,11 +1,13 @@
 import multer from "multer";
 import { Router } from "express";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { z } from "zod";
 import { logActivity } from "../../lib/activity-log.js";
 import { asyncHandler } from "../../lib/async-handler.js";
 import { uploadToR2 } from "../../lib/r2.js";
 import { requireAuth } from "../../middlewares/auth.middleware.js";
-import { mediaFileSchema } from "../../validators.js";
+import { mediaFileSchema, mediaUploadSchema } from "../../validators.js";
 import { createMedia, deleteMedia, getMedia, listMedia, updateMedia } from "./media.repository.js";
 
 const upload = multer({
@@ -92,6 +94,31 @@ mediaRouter.post("/", requireAuth, asyncHandler(async (req, res) => {
   res.status(201).json(item);
 }));
 
+mediaRouter.post("/upload", requireAuth, asyncHandler(async (req, res) => {
+  const data = mediaUploadSchema.parse(req.body);
+  const parsed = parseImageDataUrl(data.dataUrl);
+  const safeFolder = sanitizePathSegment(data.folder || "general");
+  const safeBaseName = sanitizeFileName(data.fileName);
+  const fileName = `${Date.now()}-${safeBaseName.replace(/\.[^.]+$/, "")}.${parsed.extension}`;
+  const relativeUrl = `/uploads/${safeFolder}/${fileName}`;
+  const uploadDir = path.join(process.cwd(), "uploads", safeFolder);
+
+  await mkdir(uploadDir, { recursive: true });
+  await writeFile(path.join(uploadDir, fileName), parsed.buffer);
+
+  const item = await createMedia({
+    fileName,
+    fileUrl: relativeUrl,
+    fileType: parsed.mimeType,
+    fileSize: parsed.buffer.length,
+    folder: safeFolder,
+    altText: data.altText,
+    altTextEn: data.altTextEn || data.altText,
+  });
+  void logActivity({ req, action: "upload", module: "media", targetId: item.id, description: item.fileName });
+  res.status(201).json(item);
+}));
+
 mediaRouter.put("/:id", requireAuth, asyncHandler(async (req, res) => {
   const data = mediaFileSchema.partial().parse(req.body);
   const updated = await updateMedia(req.params["id"] as string, data);
@@ -108,3 +135,22 @@ mediaRouter.delete("/:id", requireAuth, asyncHandler(async (req, res) => {
   if (deleted) void logActivity({ req, action: "delete", module: "media", targetId: id });
   res.status(deleted ? 204 : 404).send();
 }));
+
+function parseImageDataUrl(dataUrl: string) {
+  const match = dataUrl.match(/^data:(image\/(?:png|jpe?g|webp|gif));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match) {
+    throw Object.assign(new Error("Chỉ hỗ trợ upload ảnh PNG, JPG, WEBP hoặc GIF."), { status: 400 });
+  }
+
+  const mimeType = match[1];
+  const extension = mimeType === "image/jpeg" || mimeType === "image/jpg" ? "jpg" : mimeType.replace("image/", "");
+  return { mimeType, extension, buffer: Buffer.from(match[2], "base64") };
+}
+
+function sanitizePathSegment(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9-_]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "general";
+}
+
+function sanitizeFileName(value: string) {
+  return value.replace(/[/\\?%*:|"<>]/g, "-").replace(/\s+/g, "-") || "image";
+}

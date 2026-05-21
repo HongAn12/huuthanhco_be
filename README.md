@@ -82,6 +82,16 @@ POST http://localhost:4000/api/cms
 DELETE http://localhost:4000/api/cms
 ```
 
+Khi deploy production:
+
+```env
+# Frontend Vercel
+NEXT_PUBLIC_CMS_API_URL=https://huuthanhco.onrender.com
+
+# Backend Render
+CORS_ORIGIN=https://huuthanhco.vercel.app
+```
+
 ## Kết nối Neon PostgreSQL
 
 Lấy connection string từ Neon rồi đặt vào `.env`:

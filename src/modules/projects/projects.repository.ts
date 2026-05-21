@@ -1,6 +1,7 @@
 import { pool } from "../../db/pool.js";
+import type { QueryExecutor } from "../../db/pool.js";
+import { slugify, UUID_RE } from "../../lib/slugify.js";
 import type { Project } from "../../validators.js";
-import type { QueryExecutor } from "../../lib/types.js";
 
 type ProjectRow = {
   id: string;
@@ -11,19 +12,20 @@ type ProjectRow = {
   category: string;
   category_en: string;
   image: string;
+  gallery_images: string[];
   description: string;
   description_en: string;
 };
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+const PROJECT_SELECT = `
+  SELECT
+    p.id,p.name,p.name_en,p.location,p.year,p.category,p.category_en,p.image,p.description,p.description_en,
+    COALESCE(
+      (SELECT array_agg(pi.url ORDER BY pi.sort_order ASC, pi.created_at ASC) FROM project_images pi WHERE pi.project_id = p.id),
+      ARRAY[]::text[]
+    ) AS gallery_images
+  FROM projects p
+`;
 
 function mapProject(row: ProjectRow): Project {
   return {
@@ -35,12 +37,11 @@ function mapProject(row: ProjectRow): Project {
     category: row.category,
     categoryEn: row.category_en,
     image: row.image,
+    galleryImages: row.gallery_images ?? [],
     description: row.description,
     descriptionEn: row.description_en,
   };
 }
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type ListProjectsParams = { page?: number; limit?: number; category?: string; year?: number };
 export type ListProjectsResult = { data: Project[]; total: number; page: number; limit: number; totalPages: number; hasNextPage: boolean; hasPrevPage: boolean };
@@ -55,12 +56,12 @@ export async function listProjects(params: ListProjectsParams = {}): Promise<Lis
   let i = 1;
 
   if (params.category) {
-    conditions.push(`(category=$${i} OR category_en=$${i})`);
+    conditions.push(`(p.category=$${i} OR p.category_en=$${i})`);
     filterValues.push(params.category);
     i++;
   }
   if (params.year) {
-    conditions.push(`year=$${i++}`);
+    conditions.push(`p.year=$${i++}`);
     filterValues.push(params.year);
   }
 
@@ -70,11 +71,11 @@ export async function listProjects(params: ListProjectsParams = {}): Promise<Lis
 
   const [dataResult, countResult] = await Promise.all([
     pool.query<ProjectRow>(
-      `SELECT id,name,name_en,location,year,category,category_en,image,description,description_en FROM projects ${where} ORDER BY year DESC, updated_at DESC LIMIT $${limitParam} OFFSET $${offsetParam}`,
+      `${PROJECT_SELECT} ${where} ORDER BY p.year DESC, p.updated_at DESC LIMIT $${limitParam} OFFSET $${offsetParam}`,
       [...filterValues, limit, offset]
     ),
     pool.query<{ count: string }>(
-      `SELECT COUNT(*) FROM projects ${where}`,
+      `SELECT COUNT(*) FROM projects p ${where}`,
       filterValues
     ),
   ]);
@@ -92,19 +93,19 @@ export async function listProjects(params: ListProjectsParams = {}): Promise<Lis
   };
 }
 
-export async function getProject(idOrSlug: string): Promise<Project | null> {
+export async function getProject(idOrSlug: string, executor: QueryExecutor = pool): Promise<Project | null> {
   const col = UUID_RE.test(idOrSlug) ? "id" : "slug";
-  const result = await pool.query<ProjectRow>(
-    `SELECT id,name,name_en,location,year,category,category_en,image,description,description_en FROM projects WHERE ${col} = $1`,
+  const result = await executor.query<ProjectRow>(
+    `${PROJECT_SELECT} WHERE p.${col} = $1`,
     [idOrSlug]
   );
   return result.rows[0] ? mapProject(result.rows[0]) : null;
 }
 
-export async function upsertProject(item: Project, executor: QueryExecutor = pool) {
+export async function upsertProject(item: Project, executor: QueryExecutor = pool): Promise<Project> {
   const slug = slugify(item.name);
   const slugEn = slugify(item.nameEn || item.name);
-  await executor.query(
+  const result = await executor.query<ProjectRow>(
     `INSERT INTO projects
       (id,name,name_en,slug,slug_en,location,year,category,category_en,image,description,description_en)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
@@ -113,14 +114,30 @@ export async function upsertProject(item: Project, executor: QueryExecutor = poo
       slug_en=EXCLUDED.slug_en, location=EXCLUDED.location, year=EXCLUDED.year,
       category=EXCLUDED.category, category_en=EXCLUDED.category_en,
       image=EXCLUDED.image, description=EXCLUDED.description,
-      description_en=EXCLUDED.description_en, updated_at=CURRENT_TIMESTAMP`,
+      description_en=EXCLUDED.description_en, updated_at=CURRENT_TIMESTAMP
+     RETURNING id,name,name_en,location,year,category,category_en,image,description,description_en`,
     [item.id, item.name, item.nameEn, slug, slugEn, item.location, item.year,
      item.category, item.categoryEn, item.image, item.description, item.descriptionEn]
   );
-  return item;
+  await replaceProjectImages(result.rows[0].id, item.galleryImages?.length ? item.galleryImages : [item.image], executor);
+  return (await getProject(result.rows[0].id, executor)) ?? mapProject({ ...result.rows[0], gallery_images: item.galleryImages ?? [] });
 }
 
 export async function deleteProject(id: string) {
   const result = await pool.query("DELETE FROM projects WHERE id = $1", [id]);
   return (result.rowCount ?? 0) > 0;
+}
+
+async function replaceProjectImages(projectId: string, imageUrls: string[], executor: QueryExecutor) {
+  const urls = Array.from(new Set(imageUrls.map((url) => url.trim()).filter(Boolean)));
+  await executor.query("DELETE FROM project_images WHERE project_id = $1", [projectId]);
+  await Promise.all(
+    urls.map((url, sortOrder) =>
+      executor.query(
+        `INSERT INTO project_images (project_id, url, caption, caption_en, sort_order)
+         VALUES ($1,$2,'','',$3)`,
+        [projectId, url, sortOrder]
+      )
+    )
+  );
 }

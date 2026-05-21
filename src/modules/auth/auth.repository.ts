@@ -18,7 +18,14 @@ type AdminUserRow = AdminUser & {
   password_hash: string;
 };
 
-const SELECT_USER = `
+const SELECT_SAFE = `
+  SELECT u.id, u.email, u.full_name AS "fullName", u.phone, u.status,
+         r.name AS role
+  FROM admin_users u
+  LEFT JOIN admin_roles r ON r.id = u.role_id
+`;
+
+const SELECT_WITH_HASH = `
   SELECT u.id, u.email, u.full_name AS "fullName", u.phone, u.status,
          u.password_hash, r.name AS role
   FROM admin_users u
@@ -31,7 +38,7 @@ function hashToken(raw: string) {
 
 export async function findUserByEmail(email: string): Promise<AdminUserRow | null> {
   const result = await pool.query<AdminUserRow>(
-    `${SELECT_USER} WHERE u.email=$1 AND u.status='active'`,
+    `${SELECT_WITH_HASH} WHERE u.email=$1 AND u.status='active'`,
     [email]
   );
   return result.rows[0] ?? null;
@@ -39,7 +46,7 @@ export async function findUserByEmail(email: string): Promise<AdminUserRow | nul
 
 export async function findUserById(id: string): Promise<AdminUser | null> {
   const result = await pool.query<AdminUser>(
-    `${SELECT_USER} WHERE u.id=$1`,
+    `${SELECT_SAFE} WHERE u.id=$1`,
     [id]
   );
   return result.rows[0] ?? null;
@@ -86,7 +93,7 @@ export async function revokeRefreshToken(raw: string) {
 
 export async function listAdminUsers(): Promise<AdminUser[]> {
   const result = await pool.query<AdminUser>(
-    `${SELECT_USER} ORDER BY u.created_at ASC`
+    `${SELECT_SAFE} ORDER BY u.created_at ASC`
   );
   return result.rows;
 }

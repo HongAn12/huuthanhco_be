@@ -24,6 +24,7 @@ export const projectSchema = z.object({
   category: z.string().min(1),
   categoryEn: z.string().min(1),
   image: z.string().min(1),
+  galleryImages: z.array(z.string().min(1)).default([]),
   description: z.string().default(""),
   descriptionEn: z.string().default(""),
 });
@@ -102,11 +103,19 @@ export const jobApplicationSchema = z.object({
 
 export const mediaFileSchema = z.object({
   fileName: z.string().min(1),
-  fileUrl: z.string().url(),
+  fileUrl: z.string().min(1),
   fileType: z.string().optional(),
   fileSize: z.number().int().positive().optional(),
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
+  folder: z.string().default("general"),
+  altText: z.string().default(""),
+  altTextEn: z.string().default(""),
+});
+
+export const mediaUploadSchema = z.object({
+  fileName: z.string().min(1),
+  dataUrl: z.string().min(1),
   folder: z.string().default("general"),
   altText: z.string().default(""),
   altTextEn: z.string().default(""),
@@ -120,3 +129,4 @@ export type ConsultationRequest = z.infer<typeof consultationSchema>;
 export type ProjectImage = z.infer<typeof projectImageSchema>;
 export type JobApplication = z.infer<typeof jobApplicationSchema>;
 export type MediaFile = z.infer<typeof mediaFileSchema>;
+export type MediaUpload = z.infer<typeof mediaUploadSchema>;
