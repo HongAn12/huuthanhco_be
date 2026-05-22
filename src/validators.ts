@@ -9,10 +9,18 @@ export const newsSchema = z.object({
   category: z.string().min(1),
   categoryEn: z.string().min(1),
   thumbnail: z.string().min(1),
+  galleryImages: z.array(z.string().min(1)).default([]),
   excerpt: z.string().default(""),
   excerptEn: z.string().default(""),
   content: z.string().default(""),
   contentEn: z.string().default(""),
+});
+
+export const newsImageSchema = z.object({
+  url: z.string().min(1),
+  caption: z.string().default(""),
+  captionEn: z.string().default(""),
+  sortOrder: z.number().int().min(0).default(0),
 });
 
 export const projectSchema = z.object({
@@ -122,6 +130,7 @@ export const mediaUploadSchema = z.object({
 });
 
 export type NewsItem = z.infer<typeof newsSchema>;
+export type NewsImage = z.infer<typeof newsImageSchema>;
 export type Project = z.infer<typeof projectSchema>;
 export type Job = z.infer<typeof jobSchema>;
 export type CmsContent = z.infer<typeof cmsContentSchema>;

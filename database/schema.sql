@@ -85,6 +85,17 @@ ALTER TABLE project_images ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DEFA
 ALTER TABLE project_images ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE project_images ALTER COLUMN url SET NOT NULL;
 
+CREATE TABLE IF NOT EXISTS news_images (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  news_id UUID NOT NULL REFERENCES news(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  caption TEXT NOT NULL DEFAULT '',
+  caption_en TEXT NOT NULL DEFAULT '',
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS jobs (
   id UUID PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
@@ -260,6 +271,7 @@ CREATE INDEX IF NOT EXISTS idx_news_published_date ON news (published_date DESC)
 CREATE INDEX IF NOT EXISTS idx_projects_year ON projects (year DESC);
 CREATE INDEX IF NOT EXISTS idx_jobs_updated_at ON jobs (updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_project_images_project ON project_images (project_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_news_images_news ON news_images (news_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_consultations_status ON consultation_requests (status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_job_applications_status ON job_applications (status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_media_files_folder ON media_files (folder, created_at DESC);

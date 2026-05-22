@@ -1,12 +1,15 @@
 import { randomUUID } from "node:crypto";
+import multer from "multer";
 import { Router } from "express";
 import { z } from "zod";
 import { logActivity } from "../../lib/activity-log.js";
 import { asyncHandler } from "../../lib/async-handler.js";
+import { uploadToR2 } from "../../lib/r2.js";
 import { requireAuth } from "../../middlewares/auth.middleware.js";
 import { projectImageSchema, projectSchema } from "../../validators.js";
 import {
   addProjectImage,
+  bulkAddProjectImages,
   deleteProjectImage,
   listProjectImages,
   reorderProjectImages,
@@ -15,6 +18,11 @@ import {
 import { deleteProject, getProject, listProjects, upsertProject } from "./projects.repository.js";
 
 export const projectsRouter = Router();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+});
 
 const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -79,6 +87,38 @@ projectsRouter.patch("/:id/images/reorder", requireAuth, asyncHandler(async (req
   void logActivity({ req, action: "reorder", module: "project-images", targetId: projectId });
   res.json(result);
 }));
+
+// Upload nhiều ảnh trực tiếp vào project_images (đặt trước /:imageId để không bị match nhầm)
+projectsRouter.post(
+  "/:id/images/upload",
+  requireAuth,
+  upload.array("files", 20),
+  asyncHandler(async (req, res) => {
+    const projectId = req.params["id"] as string;
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) {
+      res.status(400).json({ error: "Không có file nào được gửi lên" });
+      return;
+    }
+
+    const uploadResults = await Promise.allSettled(
+      files.map((file) => uploadToR2(file.buffer, file.originalname, file.mimetype, "projects"))
+    );
+
+    const succeeded = uploadResults
+      .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof uploadToR2>>> => r.status === "fulfilled")
+      .map((r) => r.value.url);
+
+    const failed = uploadResults.filter((r) => r.status === "rejected").length;
+
+    const images = await bulkAddProjectImages(projectId, succeeded);
+    if (images.length > 0) {
+      void logActivity({ req, action: "create", module: "project-images", targetId: projectId, description: `Upload ${images.length} ảnh` });
+    }
+
+    res.status(201).json({ uploaded: images.length, failed, items: images });
+  })
+);
 
 projectsRouter.put("/:id/images/:imageId", requireAuth, asyncHandler(async (req, res) => {
   const imageId = req.params["imageId"] as string;

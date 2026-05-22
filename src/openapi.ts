@@ -76,10 +76,22 @@ export const openApiDocument = {
           category: { type: "string" },
           categoryEn: { type: "string" },
           thumbnail: { type: "string" },
+          galleryImages: { type: "array", items: { type: "string" } },
           excerpt: { type: "string" },
           excerptEn: { type: "string" },
           content: { type: "string" },
           contentEn: { type: "string" },
+        },
+      },
+      NewsImage: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          newsId: { type: "string", format: "uuid" },
+          url: { type: "string" },
+          caption: { type: "string" },
+          captionEn: { type: "string" },
+          sortOrder: { type: "integer" },
         },
       },
       Project: {
@@ -354,10 +366,19 @@ export const openApiDocument = {
       },
       post: {
         tags: ["News"],
-        summary: "Tạo tin tức mới (server tự sinh UUID)",
+        summary: "Tạo tin tức mới",
         security: [{ bearerAuth: [] }],
-        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/News" } } } },
-        responses: { 201: { description: "Đã tạo" } },
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/News",
+              },
+            },
+          },
+        },
+        responses: { 201: { description: "Đã tạo", content: { "application/json": { schema: { $ref: "#/components/schemas/News" } } } } },
       },
     },
     "/api/news/{idOrSlug}": {
@@ -371,11 +392,18 @@ export const openApiDocument = {
     "/api/news/{id}": {
       put: {
         tags: ["News"],
-        summary: "Update news",
+        summary: "Cập nhật tin tức",
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
-        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/News" } } } },
-        responses: { 200: { description: "Updated" } },
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/News" },
+            },
+          },
+        },
+        responses: { 200: { description: "Đã cập nhật", content: { "application/json": { schema: { $ref: "#/components/schemas/News" } } } } },
       },
       delete: {
         tags: ["News"],
@@ -383,6 +411,113 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         responses: { 204: { description: "Deleted" }, 404: { description: "Not found" } },
+      },
+    },
+    "/api/news/{id}/images": {
+      get: {
+        tags: ["News"],
+        summary: "Lấy danh sách ảnh gallery của bài viết",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: { 200: { description: "Danh sách ảnh", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/NewsImage" } } } } } },
+      },
+      post: {
+        tags: ["News"],
+        summary: "Thêm ảnh vào gallery (truyền URL)",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["url"],
+                properties: {
+                  url: { type: "string" },
+                  caption: { type: "string" },
+                  captionEn: { type: "string" },
+                  sortOrder: { type: "integer", default: 0 },
+                },
+              },
+            },
+          },
+        },
+        responses: { 201: { description: "Đã thêm" } },
+      },
+    },
+    "/api/news/{id}/images/upload": {
+      post: {
+        tags: ["News"],
+        summary: "Upload nhiều ảnh gallery cho bài viết lên R2",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                required: ["files"],
+                properties: {
+                  files: { type: "array", items: { type: "string", format: "binary" }, description: "Ảnh gallery (tối đa 20 file, 20MB/file)" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: "Upload thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    uploaded: { type: "integer" },
+                    failed: { type: "integer" },
+                    items: { type: "array", items: { $ref: "#/components/schemas/NewsImage" } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/news/{id}/images/reorder": {
+      patch: {
+        tags: ["News"],
+        summary: "Sắp xếp lại thứ tự ảnh gallery",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { type: "object", required: ["ids"], properties: { ids: { type: "array", items: { type: "string", format: "uuid" } } } } } },
+        },
+        responses: { 200: { description: "Đã sắp xếp lại" } },
+      },
+    },
+    "/api/news/{id}/images/{imageId}": {
+      put: {
+        tags: ["News"],
+        summary: "Cập nhật caption hoặc thứ tự ảnh",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+          { name: "imageId", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+        ],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/NewsImage" } } } },
+        responses: { 200: { description: "Đã cập nhật" }, 404: { description: "Not found" } },
+      },
+      delete: {
+        tags: ["News"],
+        summary: "Xóa ảnh gallery",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+          { name: "imageId", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+        ],
+        responses: { 204: { description: "Đã xóa" } },
       },
     },
     "/api/projects": {
@@ -399,10 +534,17 @@ export const openApiDocument = {
       },
       post: {
         tags: ["Projects"],
-        summary: "Tạo dự án mới (server tự sinh UUID)",
+        summary: "Tạo dự án mới",
         security: [{ bearerAuth: [] }],
-        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/Project" } } } },
-        responses: { 201: { description: "Đã tạo" } },
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/Project" },
+            },
+          },
+        },
+        responses: { 201: { description: "Đã tạo", content: { "application/json": { schema: { $ref: "#/components/schemas/Project" } } } } },
       },
     },
     "/api/projects/{idOrSlug}": {
@@ -416,11 +558,18 @@ export const openApiDocument = {
     "/api/projects/{id}": {
       put: {
         tags: ["Projects"],
-        summary: "Update project",
+        summary: "Cập nhật dự án",
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
-        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/Project" } } } },
-        responses: { 200: { description: "Updated" } },
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/Project" },
+            },
+          },
+        },
+        responses: { 200: { description: "Đã cập nhật", content: { "application/json": { schema: { $ref: "#/components/schemas/Project" } } } } },
       },
       delete: {
         tags: ["Projects"],
@@ -428,6 +577,45 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         responses: { 204: { description: "Deleted" } },
+      },
+    },
+    "/api/projects/{id}/images/upload": {
+      post: {
+        tags: ["Projects"],
+        summary: "Upload nhiều ảnh gallery cho dự án lên R2",
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                required: ["files"],
+                properties: {
+                  files: { type: "array", items: { type: "string", format: "binary" }, description: "Ảnh gallery (tối đa 20 file, 20MB/file)" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: {
+            description: "Upload thành công",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    uploaded: { type: "integer" },
+                    failed: { type: "integer" },
+                    items: { type: "array", items: { $ref: "#/components/schemas/ProjectImage" } },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
     "/api/projects/{id}/images": {

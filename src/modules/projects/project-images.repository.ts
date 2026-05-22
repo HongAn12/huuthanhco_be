@@ -62,6 +62,25 @@ export async function deleteProjectImage(id: string) {
   return (result.rowCount ?? 0) > 0;
 }
 
+export async function bulkAddProjectImages(projectId: string, urls: string[]) {
+  if (!urls.length) return [];
+  const countResult = await pool.query<{ max: number | null }>(
+    "SELECT MAX(sort_order) AS max FROM project_images WHERE project_id = $1",
+    [projectId]
+  );
+  const base = (countResult.rows[0]?.max ?? -1) + 1;
+  const results = await Promise.all(
+    urls.map((url, i) =>
+      pool.query<ProjectImageRow>(
+        `INSERT INTO project_images (project_id, url, caption, caption_en, sort_order)
+         VALUES ($1,$2,'','',$3) RETURNING ${COLS}`,
+        [projectId, url, base + i]
+      )
+    )
+  );
+  return results.map((r) => mapImage(r.rows[0]));
+}
+
 export async function reorderProjectImages(projectId: string, orderedIds: string[]) {
   const client: PoolClient = await pool.connect();
   try {
