@@ -5,7 +5,7 @@ import { z } from "zod";
 import { logActivity } from "../../lib/activity-log.js";
 import { asyncHandler } from "../../lib/async-handler.js";
 import { uploadToR2 } from "../../lib/r2.js";
-import { requireAuth } from "../../middlewares/auth.middleware.js";
+import { requireAuth, requireRole } from "../../middlewares/auth.middleware.js";
 import { projectImageSchema, projectSchema } from "../../validators.js";
 import {
   addProjectImage,
@@ -46,19 +46,19 @@ projectsRouter.get("/:idOrSlug", asyncHandler(async (req, res) => {
 }));
 
 // Admin
-projectsRouter.post("/", requireAuth, asyncHandler(async (req, res) => {
+projectsRouter.post("/", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
   const item = await upsertProject(projectSchema.parse({ ...req.body, id: randomUUID() }));
   void logActivity({ req, action: "create", module: "projects", targetId: item.id, description: item.name });
   res.status(201).json(item);
 }));
 
-projectsRouter.put("/:id", requireAuth, asyncHandler(async (req, res) => {
+projectsRouter.put("/:id", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
   const item = await upsertProject(projectSchema.parse({ ...req.body, id: req.params["id"] }));
   void logActivity({ req, action: "update", module: "projects", targetId: item.id, description: item.name });
   res.json(item);
 }));
 
-projectsRouter.delete("/:id", requireAuth, asyncHandler(async (req, res) => {
+projectsRouter.delete("/:id", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
   const id = req.params["id"] as string;
   const deleted = await deleteProject(id);
   if (deleted) void logActivity({ req, action: "delete", module: "projects", targetId: id });
@@ -71,7 +71,7 @@ projectsRouter.get("/:id/images", asyncHandler(async (req, res) => {
   res.json(await listProjectImages(req.params["id"] as string));
 }));
 
-projectsRouter.post("/:id/images", requireAuth, asyncHandler(async (req, res) => {
+projectsRouter.post("/:id/images", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
   const projectId = req.params["id"] as string;
   const data = projectImageSchema.parse(req.body);
   const image = await addProjectImage(projectId, data);
@@ -80,7 +80,7 @@ projectsRouter.post("/:id/images", requireAuth, asyncHandler(async (req, res) =>
 }));
 
 // Reorder đặt trước /:imageId để không bị match nhầm
-projectsRouter.patch("/:id/images/reorder", requireAuth, asyncHandler(async (req, res) => {
+projectsRouter.patch("/:id/images/reorder", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
   const projectId = req.params["id"] as string;
   const { ids } = z.object({ ids: z.array(z.string().uuid()) }).parse(req.body);
   const result = await reorderProjectImages(projectId, ids);
@@ -92,6 +92,7 @@ projectsRouter.patch("/:id/images/reorder", requireAuth, asyncHandler(async (req
 projectsRouter.post(
   "/:id/images/upload",
   requireAuth,
+  requireRole("editor"),
   upload.array("files", 20),
   asyncHandler(async (req, res) => {
     const projectId = req.params["id"] as string;
@@ -120,7 +121,7 @@ projectsRouter.post(
   })
 );
 
-projectsRouter.put("/:id/images/:imageId", requireAuth, asyncHandler(async (req, res) => {
+projectsRouter.put("/:id/images/:imageId", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
   const imageId = req.params["imageId"] as string;
   const data = projectImageSchema.partial().parse(req.body);
   const updated = await updateProjectImage(imageId, data);
@@ -131,7 +132,7 @@ projectsRouter.put("/:id/images/:imageId", requireAuth, asyncHandler(async (req,
   }
 }));
 
-projectsRouter.delete("/:id/images/:imageId", requireAuth, asyncHandler(async (req, res) => {
+projectsRouter.delete("/:id/images/:imageId", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
   const imageId = req.params["imageId"] as string;
   const deleted = await deleteProjectImage(imageId);
   if (deleted) void logActivity({ req, action: "delete", module: "project-images", targetId: imageId });

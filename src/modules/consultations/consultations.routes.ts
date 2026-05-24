@@ -28,13 +28,13 @@ consultationRouter.post("/", publicFormLimiter, asyncHandler(async (req, res) =>
 }));
 
 // Admin: xem danh sách, filter theo ?status=new|read|done
-consultationRouter.get("/", requireAuth, asyncHandler(async (req, res) => {
+consultationRouter.get("/", requireAuth, requireRole("hr", "viewer"), asyncHandler(async (req, res) => {
   const { status } = z.object({ status: z.string().optional() }).parse(req.query);
   res.json(await listConsultations(status));
 }));
 
 // Admin: cập nhật trạng thái + ghi chú
-consultationRouter.patch("/:id", requireAuth, asyncHandler(async (req, res) => {
+consultationRouter.patch("/:id", requireAuth, requireRole("hr"), asyncHandler(async (req, res) => {
   const data = z.object({
     status: z.enum(["new", "read", "done"]).optional(),
     note: z.string().optional(),

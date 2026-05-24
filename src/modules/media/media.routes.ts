@@ -6,7 +6,7 @@ import { z } from "zod";
 import { logActivity } from "../../lib/activity-log.js";
 import { asyncHandler } from "../../lib/async-handler.js";
 import { uploadToR2 } from "../../lib/r2.js";
-import { requireAuth } from "../../middlewares/auth.middleware.js";
+import { requireAuth, requireRole } from "../../middlewares/auth.middleware.js";
 import { mediaFileSchema, mediaUploadSchema } from "../../validators.js";
 import { createMedia, deleteMedia, getMedia, listMedia, updateMedia } from "./media.repository.js";
 
@@ -21,6 +21,7 @@ export const mediaRouter = Router();
 mediaRouter.post(
   "/upload",
   requireAuth,
+  requireRole("editor"),
   upload.array("files", 20),
   asyncHandler(async (req, res) => {
     const files = req.files as Express.Multer.File[];
@@ -88,13 +89,13 @@ mediaRouter.get("/:id", requireAuth, asyncHandler(async (req, res) => {
   else res.json(item);
 }));
 
-mediaRouter.post("/", requireAuth, asyncHandler(async (req, res) => {
+mediaRouter.post("/", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
   const item = await createMedia(mediaFileSchema.parse(req.body));
   void logActivity({ req, action: "create", module: "media", targetId: item.id, description: item.fileName });
   res.status(201).json(item);
 }));
 
-mediaRouter.post("/upload", requireAuth, asyncHandler(async (req, res) => {
+mediaRouter.post("/upload", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
   const data = mediaUploadSchema.parse(req.body);
   const parsed = parseImageDataUrl(data.dataUrl);
   const safeFolder = sanitizePathSegment(data.folder || "general");
@@ -119,7 +120,7 @@ mediaRouter.post("/upload", requireAuth, asyncHandler(async (req, res) => {
   res.status(201).json(item);
 }));
 
-mediaRouter.put("/:id", requireAuth, asyncHandler(async (req, res) => {
+mediaRouter.put("/:id", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
   const data = mediaFileSchema.partial().parse(req.body);
   const updated = await updateMedia(req.params["id"] as string, data);
   if (!updated) res.status(404).json({ error: "Not found" });
@@ -129,7 +130,7 @@ mediaRouter.put("/:id", requireAuth, asyncHandler(async (req, res) => {
   }
 }));
 
-mediaRouter.delete("/:id", requireAuth, asyncHandler(async (req, res) => {
+mediaRouter.delete("/:id", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
   const id = req.params["id"] as string;
   const deleted = await deleteMedia(id);
   if (deleted) void logActivity({ req, action: "delete", module: "media", targetId: id });

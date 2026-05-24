@@ -37,7 +37,7 @@ settingsRouter.get("/:key(*)", asyncHandler(async (req, res) => {
 }));
 
 // Admin: upsert 1 setting
-settingsRouter.put("/:key(*)", requireAuth, asyncHandler(async (req, res) => {
+settingsRouter.put("/:key(*)", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
   const key = req.params["key"] as string;
   const data = settingUpsertSchema.parse(req.body);
   const result = await upsertSetting(key, data);
@@ -46,7 +46,7 @@ settingsRouter.put("/:key(*)", requireAuth, asyncHandler(async (req, res) => {
 }));
 
 // Admin: bulk upsert nhiều settings cùng lúc
-settingsRouter.post("/bulk", requireAuth, asyncHandler(async (req, res) => {
+settingsRouter.post("/bulk", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
   const items = settingBulkSchema.parse(req.body);
   const result = await upsertSettingsBulk(items);
   void logActivity({ req, action: "bulk-update", module: "settings", description: `${items.length} keys` });

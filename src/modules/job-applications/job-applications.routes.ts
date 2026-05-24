@@ -30,7 +30,7 @@ jobApplicationsRouter.post("/", publicFormLimiter, asyncHandler(async (req, res)
 }));
 
 // Admin: danh sách đơn ứng tuyển (filter: ?status=new&jobId=xxx&limit=20&offset=0)
-jobApplicationsRouter.get("/", requireAuth, asyncHandler(async (req, res) => {
+jobApplicationsRouter.get("/", requireAuth, requireRole("hr", "viewer"), asyncHandler(async (req, res) => {
   const query = z.object({
     status: z.string().optional(),
     jobId: z.string().uuid().optional(),
@@ -41,14 +41,14 @@ jobApplicationsRouter.get("/", requireAuth, asyncHandler(async (req, res) => {
 }));
 
 // Admin: xem chi tiết 1 đơn
-jobApplicationsRouter.get("/:id", requireAuth, asyncHandler(async (req, res) => {
+jobApplicationsRouter.get("/:id", requireAuth, requireRole("hr", "viewer"), asyncHandler(async (req, res) => {
   const item = await getJobApplication(req.params["id"] as string);
   if (!item) res.status(404).json({ error: "Not found" });
   else res.json(item);
 }));
 
 // Admin: cập nhật trạng thái + ghi chú
-jobApplicationsRouter.patch("/:id", requireAuth, asyncHandler(async (req, res) => {
+jobApplicationsRouter.patch("/:id", requireAuth, requireRole("hr"), asyncHandler(async (req, res) => {
   const data = z.object({
     status: z.enum(["new", "reviewing", "interviewed", "hired", "rejected"]).optional(),
     note: z.string().optional(),
