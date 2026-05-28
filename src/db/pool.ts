@@ -13,7 +13,10 @@ const cleanUrl = env.databaseUrl
 export const pool = new Pool({
   connectionString: cleanUrl,
   max: 10,
-  ssl: env.databaseUrl.includes("neon.tech") ? { rejectUnauthorized: false } : undefined,
+  ssl:
+    env.nodeEnv === "production" || env.databaseUrl.includes("neon.tech")
+      ? { rejectUnauthorized: true }
+      : undefined,
 });
 
 pool.on("error", (err) => {

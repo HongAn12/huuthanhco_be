@@ -235,13 +235,21 @@ CREATE TABLE IF NOT EXISTS job_applications (
   phone VARCHAR(50) NOT NULL,
   email VARCHAR(255),
   position_applied VARCHAR(255),
-  cv_file_url TEXT,
+  cv_storage_key TEXT,
+  cv_file_name VARCHAR(255),
+  cv_content_type VARCHAR(100),
+  cv_file_size INTEGER,
   message TEXT DEFAULT '',
   status VARCHAR(50) DEFAULT 'new',
   note TEXT,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE job_applications ADD COLUMN IF NOT EXISTS cv_storage_key TEXT;
+ALTER TABLE job_applications ADD COLUMN IF NOT EXISTS cv_file_name VARCHAR(255);
+ALTER TABLE job_applications ADD COLUMN IF NOT EXISTS cv_content_type VARCHAR(100);
+ALTER TABLE job_applications ADD COLUMN IF NOT EXISTS cv_file_size INTEGER;
 
 CREATE TABLE IF NOT EXISTS site_settings (
   key VARCHAR(255) PRIMARY KEY,
