@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { logActivity } from "../../lib/activity-log.js";
 import { asyncHandler } from "../../lib/async-handler.js";
-import { requireAuth, requireRole } from "../../middlewares/auth.middleware.js";
+import { requireAuth, requirePermission } from "../../middlewares/auth.middleware.js";
 import { adminUserSchema, loginSchema } from "../../validators.js";
 import {
   createAdminUser,
@@ -67,18 +67,18 @@ authRouter.get("/me", requireAuth, asyncHandler(async (req, res) => {
 }));
 
 // Quản lý tài khoản admin (chỉ super_admin)
-authRouter.get("/users", requireAuth, requireRole("super_admin"), asyncHandler(async (_req, res) => {
+authRouter.get("/users", requireAuth, requirePermission("system:admin"), asyncHandler(async (_req, res) => {
   res.json(await listAdminUsers());
 }));
 
-authRouter.post("/users", requireAuth, requireRole("super_admin"), asyncHandler(async (req, res) => {
+authRouter.post("/users", requireAuth, requirePermission("system:admin"), asyncHandler(async (req, res) => {
   const data = adminUserSchema.parse(req.body);
   const user = await createAdminUser(data.email, data.password, data.fullName, data.role);
   void logActivity({ req, action: "create", module: "admin-users", targetId: user.id, description: user.email });
   res.status(201).json(user);
 }));
 
-authRouter.put("/users/:id", requireAuth, requireRole("super_admin"), asyncHandler(async (req, res) => {
+authRouter.put("/users/:id", requireAuth, requirePermission("system:admin"), asyncHandler(async (req, res) => {
   const { fullName, email, password, role } = adminUserSchema.partial().parse(req.body);
   const user = await updateAdminUser(req.params["id"] as string, { fullName, email, password, role });
   if (!user) res.status(404).json({ error: "User not found" });
@@ -88,7 +88,7 @@ authRouter.put("/users/:id", requireAuth, requireRole("super_admin"), asyncHandl
   }
 }));
 
-authRouter.delete("/users/:id", requireAuth, requireRole("super_admin"), asyncHandler(async (req, res) => {
+authRouter.delete("/users/:id", requireAuth, requirePermission("system:admin"), asyncHandler(async (req, res) => {
   const id = req.params["id"] as string;
   const deleted = await deleteAdminUser(id);
   if (deleted) void logActivity({ req, action: "delete", module: "admin-users", targetId: id });

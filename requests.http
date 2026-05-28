@@ -531,39 +531,12 @@ DELETE {{base}}/media/MEDIA_ID_HERE
 Authorization: Bearer {{token}}
 
 
-# ─── CMS BULK SYNC ───────────────────────────────────────────
+# ─── CMS READ MODEL ──────────────────────────────────────────
 
 ### Get all CMS content
 GET {{base}}/cms
 
 ###
-
-### Replace all CMS content at once (admin)
-POST {{base}}/cms
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-  "news": [
-    {
-      "id": "00000000-0000-0000-0000-000000000001",
-      "title": "Tin tức mới nhất",
-      "titleEn": "Latest News",
-      "slug": "tin-tuc-moi-nhat",
-      "date": "2024-01-15",
-      "category": "Công ty",
-      "categoryEn": "Company",
-      "thumbnail": "https://example.com/thumb.jpg",
-      "excerpt": "Tóm tắt",
-      "excerptEn": "Excerpt",
-      "content": "<p>Nội dung</p>",
-      "contentEn": "<p>Content</p>"
-    }
-  ],
-  "projects": [],
-  "jobs": []
-}
-
 
 # ─── HEALTH CHECK ────────────────────────────────────────────
 
