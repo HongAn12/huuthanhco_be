@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { logActivity } from "../../lib/activity-log.js";
 import { asyncHandler } from "../../lib/async-handler.js";
-import { requireAuth, requireRole } from "../../middlewares/auth.middleware.js";
+import { requireAuth, requirePermission } from "../../middlewares/auth.middleware.js";
 import { settingBulkSchema, settingUpsertSchema } from "../../validators.js";
 import {
   deleteSetting,
@@ -37,7 +37,7 @@ settingsRouter.get("/:key(*)", asyncHandler(async (req, res) => {
 }));
 
 // Admin: upsert 1 setting
-settingsRouter.put("/:key(*)", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
+settingsRouter.put("/:key(*)", requireAuth, requirePermission("content:write"), asyncHandler(async (req, res) => {
   const key = req.params["key"] as string;
   const data = settingUpsertSchema.parse(req.body);
   const result = await upsertSetting(key, data);
@@ -46,7 +46,7 @@ settingsRouter.put("/:key(*)", requireAuth, requireRole("editor"), asyncHandler(
 }));
 
 // Admin: bulk upsert nhiều settings cùng lúc
-settingsRouter.post("/bulk", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
+settingsRouter.post("/bulk", requireAuth, requirePermission("content:write"), asyncHandler(async (req, res) => {
   const items = settingBulkSchema.parse(req.body);
   const result = await upsertSettingsBulk(items);
   void logActivity({ req, action: "bulk-update", module: "settings", description: `${items.length} keys` });
@@ -54,7 +54,7 @@ settingsRouter.post("/bulk", requireAuth, requireRole("editor"), asyncHandler(as
 }));
 
 // Admin: xoá setting (chỉ super_admin)
-settingsRouter.delete("/:key(*)", requireAuth, requireRole("super_admin"), asyncHandler(async (req, res) => {
+settingsRouter.delete("/:key(*)", requireAuth, requirePermission("system:admin"), asyncHandler(async (req, res) => {
   const key = req.params["key"] as string;
   const deleted = await deleteSetting(key);
   if (deleted) void logActivity({ req, action: "delete", module: "settings", targetId: key });

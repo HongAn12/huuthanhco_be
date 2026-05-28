@@ -3,7 +3,7 @@ import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { logActivity } from "../../lib/activity-log.js";
 import { asyncHandler } from "../../lib/async-handler.js";
-import { requireAuth, requireRole } from "../../middlewares/auth.middleware.js";
+import { requireAuth, requirePermission } from "../../middlewares/auth.middleware.js";
 import { consultationSchema } from "../../validators.js";
 import {
   createConsultation,
@@ -28,13 +28,13 @@ consultationRouter.post("/", publicFormLimiter, asyncHandler(async (req, res) =>
 }));
 
 // Admin: xem danh sách, filter theo ?status=new|read|done
-consultationRouter.get("/", requireAuth, requireRole("hr", "viewer"), asyncHandler(async (req, res) => {
+consultationRouter.get("/", requireAuth, requirePermission("records:read"), asyncHandler(async (req, res) => {
   const { status } = z.object({ status: z.string().optional() }).parse(req.query);
   res.json(await listConsultations(status));
 }));
 
 // Admin: cập nhật trạng thái + ghi chú
-consultationRouter.patch("/:id", requireAuth, requireRole("hr"), asyncHandler(async (req, res) => {
+consultationRouter.patch("/:id", requireAuth, requirePermission("recruitment:write"), asyncHandler(async (req, res) => {
   const data = z.object({
     status: z.enum(["new", "read", "done"]).optional(),
     note: z.string().optional(),
@@ -48,7 +48,7 @@ consultationRouter.patch("/:id", requireAuth, requireRole("hr"), asyncHandler(as
 }));
 
 // Admin: xoá (chỉ super_admin)
-consultationRouter.delete("/:id", requireAuth, requireRole("super_admin"), asyncHandler(async (req, res) => {
+consultationRouter.delete("/:id", requireAuth, requirePermission("system:admin"), asyncHandler(async (req, res) => {
   const id = req.params["id"] as string;
   const deleted = await deleteConsultation(id);
   if (deleted) void logActivity({ req, action: "delete", module: "consultations", targetId: id });

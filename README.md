@@ -35,8 +35,6 @@ http://localhost:4000/openapi.json
 ```txt
 GET    /api/health
 GET    /api/cms
-POST   /api/cms
-DELETE /api/cms
 
 GET    /api/news
 POST   /api/news
@@ -54,17 +52,22 @@ PUT    /api/jobs/:id
 DELETE /api/jobs/:id
 ```
 
-`POST /api/cms` nhận nguyên object:
+`GET /api/cms` chỉ dùng để đọc dữ liệu tổng hợp. API không cung cấp thao tác
+replace-all hoặc delete-all; nội dung được cập nhật qua endpoint riêng theo
+từng bản ghi.
 
-```json
-{
-  "news": [],
-  "projects": [],
-  "jobs": []
-}
-```
+## Phân quyền quản trị
 
-Shape này giữ tương thích với frontend hiện tại.
+| Permission | Vai trò được phép | Phạm vi |
+| --- | --- | --- |
+| `content:write` | `editor`, `super_admin` | Tin tức, dự án, media và settings nội dung |
+| `recruitment:write` | `hr`, `super_admin` | Tin tuyển dụng, trạng thái hồ sơ và liên hệ |
+| `records:read` | `viewer`, `hr`, `super_admin` | Xem hồ sơ ứng tuyển và liên hệ |
+| `system:admin` | `super_admin` | Tài khoản quản trị và thao tác xóa nhạy cảm |
+
+`editor` không được tạo, sửa hoặc xóa tin tuyển dụng. `POST` và `DELETE`
+trên `/api/cms` đã bị loại khỏi production để không có đường ghi/xóa toàn bộ
+`news`, `projects` hoặc `jobs`.
 
 ## Kết nối frontend
 
@@ -78,8 +81,6 @@ Sau đó frontend có thể gọi:
 
 ```txt
 GET http://localhost:4000/api/cms
-POST http://localhost:4000/api/cms
-DELETE http://localhost:4000/api/cms
 ```
 
 Khi deploy production:
