@@ -8,12 +8,22 @@ type JobApplicationRow = {
   phone: string;
   email: string | null;
   position_applied: string | null;
-  cv_file_url: string | null;
+  cv_storage_key: string | null;
+  cv_file_name: string | null;
+  cv_content_type: string | null;
+  cv_file_size: number | null;
   message: string | null;
   status: string;
   note: string | null;
   created_at: Date;
   updated_at: Date;
+};
+
+export type StoredCvFile = {
+  key: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
 };
 
 type JobApplicationWithJobRow = JobApplicationRow & {
@@ -29,7 +39,10 @@ function mapApplication(row: JobApplicationRow) {
     phone: row.phone,
     email: row.email ?? undefined,
     positionApplied: row.position_applied ?? undefined,
-    cvFileUrl: row.cv_file_url ?? undefined,
+    hasCv: Boolean(row.cv_storage_key),
+    cvFileName: row.cv_file_name ?? undefined,
+    cvContentType: row.cv_content_type ?? undefined,
+    cvFileSize: row.cv_file_size ?? undefined,
     message: row.message ?? "",
     status: row.status as "new" | "reviewing" | "interviewed" | "hired" | "rejected",
     note: row.note ?? undefined,
@@ -46,21 +59,41 @@ function mapApplicationWithJob(row: JobApplicationWithJobRow) {
   };
 }
 
-export async function createJobApplication(data: JobApplication) {
+export async function createJobApplication(data: JobApplication, cvFile?: StoredCvFile) {
   const result = await pool.query<JobApplicationRow>(
-    `INSERT INTO job_applications (job_id,full_name,phone,email,position_applied,cv_file_url,message)
-     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+    `INSERT INTO job_applications
+       (job_id,full_name,phone,email,position_applied,cv_storage_key,cv_file_name,cv_content_type,cv_file_size,message)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
     [
       data.jobId ?? null,
       data.fullName,
       data.phone,
       data.email ?? null,
       data.positionApplied ?? null,
-      data.cvFileUrl ?? null,
+      cvFile?.key ?? null,
+      cvFile?.fileName ?? null,
+      cvFile?.fileType ?? null,
+      cvFile?.fileSize ?? null,
       data.message,
     ]
   );
   return mapApplication(result.rows[0]);
+}
+
+export async function getJobApplicationCv(id: string): Promise<StoredCvFile | null> {
+  const result = await pool.query<Pick<JobApplicationRow, "cv_storage_key" | "cv_file_name" | "cv_content_type" | "cv_file_size">>(
+    `SELECT cv_storage_key, cv_file_name, cv_content_type, cv_file_size
+     FROM job_applications WHERE id=$1`,
+    [id]
+  );
+  const row = result.rows[0];
+  if (!row?.cv_storage_key || !row.cv_file_name || !row.cv_content_type || !row.cv_file_size) return null;
+  return {
+    key: row.cv_storage_key,
+    fileName: row.cv_file_name,
+    fileType: row.cv_content_type,
+    fileSize: row.cv_file_size,
+  };
 }
 
 export async function listJobApplications(filters: {

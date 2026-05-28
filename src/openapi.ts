@@ -206,7 +206,10 @@ export const openApiDocument = {
           phone: { type: "string" },
           email: { type: "string", format: "email" },
           positionApplied: { type: "string" },
-          cvFileUrl: { type: "string", format: "uri" },
+          hasCv: { type: "boolean", readOnly: true },
+          cvFileName: { type: "string", readOnly: true },
+          cvContentType: { type: "string", readOnly: true },
+          cvFileSize: { type: "integer", readOnly: true },
           message: { type: "string" },
           status: { type: "string", enum: ["new", "reviewing", "interviewed", "hired", "rejected"], readOnly: true },
         },
@@ -336,21 +339,8 @@ export const openApiDocument = {
     "/api/cms": {
       get: {
         tags: ["CMS"],
-        summary: "Get all CMS content",
+        summary: "Get all CMS content (read only)",
         responses: { 200: { description: "CMS content", content: { "application/json": { schema: { $ref: "#/components/schemas/CmsContent" } } } } },
-      },
-      post: {
-        tags: ["CMS"],
-        summary: "Replace CMS content",
-        security: [{ bearerAuth: [] }],
-        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CmsContent" } } } },
-        responses: { 200: { description: "Saved" } },
-      },
-      delete: {
-        tags: ["CMS"],
-        summary: "Delete all CMS content",
-        security: [{ bearerAuth: [] }],
-        responses: { 204: { description: "Deleted" } },
       },
     },
     "/api/news": {
@@ -459,7 +449,7 @@ export const openApiDocument = {
                 type: "object",
                 required: ["files"],
                 properties: {
-                  files: { type: "array", items: { type: "string", format: "binary" }, description: "Ảnh gallery (tối đa 20 file, 20MB/file)" },
+                  files: { type: "array", items: { type: "string", format: "binary" }, description: "Anh gallery PNG, JPG, WEBP hoac GIF (toi da 10 file, 5MB/file; kiem tra chu ky file)" },
                 },
               },
             },
@@ -593,7 +583,7 @@ export const openApiDocument = {
                 type: "object",
                 required: ["files"],
                 properties: {
-                  files: { type: "array", items: { type: "string", format: "binary" }, description: "Ảnh gallery (tối đa 20 file, 20MB/file)" },
+                  files: { type: "array", items: { type: "string", format: "binary" }, description: "Anh gallery PNG, JPG, WEBP hoac GIF (toi da 10 file, 5MB/file; kiem tra chu ky file)" },
                 },
               },
             },
@@ -685,6 +675,7 @@ export const openApiDocument = {
       post: {
         tags: ["Jobs"],
         summary: "Tạo việc làm mới (server tự sinh UUID)",
+        description: "Requires recruitment:write permission (hr or super_admin).",
         security: [{ bearerAuth: [] }],
         requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/Job" } } } },
         responses: { 201: { description: "Đã tạo" } },
@@ -702,6 +693,7 @@ export const openApiDocument = {
       put: {
         tags: ["Jobs"],
         summary: "Update job",
+        description: "Requires recruitment:write permission (hr or super_admin).",
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/Job" } } } },
@@ -710,6 +702,7 @@ export const openApiDocument = {
       delete: {
         tags: ["Jobs"],
         summary: "Delete job",
+        description: "Requires recruitment:write permission (hr or super_admin).",
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         responses: { 204: { description: "Deleted" } },
@@ -763,7 +756,26 @@ export const openApiDocument = {
       post: {
         tags: ["Job Applications"],
         summary: "Submit job application",
-        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/JobApplication" } } } },
+        requestBody: {
+          required: true,
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                required: ["fullName", "phone"],
+                properties: {
+                  jobId: { type: "string", format: "uuid" },
+                  fullName: { type: "string" },
+                  phone: { type: "string" },
+                  email: { type: "string", format: "email" },
+                  positionApplied: { type: "string" },
+                  message: { type: "string" },
+                  cvFile: { type: "string", format: "binary", description: "PDF only, maximum 5MB" },
+                },
+              },
+            },
+          },
+        },
         responses: { 201: { description: "Submitted" } },
       },
     },
@@ -789,6 +801,21 @@ export const openApiDocument = {
         security: [{ bearerAuth: [] }],
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         responses: { 204: { description: "Deleted" } },
+      },
+    },
+    "/api/job-applications/{id}/cv": {
+      get: {
+        tags: ["Job Applications"],
+        summary: "Create a short-lived signed CV URL",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+          { name: "download", in: "query", schema: { type: "string", enum: ["0", "1"], default: "0" } },
+        ],
+        responses: {
+          200: { description: "Signed URL valid for 300 seconds" },
+          404: { description: "CV not found" },
+        },
       },
     },
     "/api/settings": {
@@ -850,7 +877,7 @@ export const openApiDocument = {
                   files: {
                     type: "array",
                     items: { type: "string", format: "binary" },
-                    description: "Danh sách file ảnh (tối đa 20 file, mỗi file tối đa 20MB)",
+                    description: "Danh sách file ảnh PNG, JPG, WEBP hoặc GIF (tối đa 10 file, mỗi file tối đa 5MB; kiểm tra chữ ký file)",
                   },
                   folder: {
                     type: "string",

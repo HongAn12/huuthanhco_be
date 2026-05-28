@@ -105,7 +105,6 @@ export const jobApplicationSchema = z.object({
   phone: z.string().min(1),
   email: z.string().email().optional(),
   positionApplied: z.string().optional(),
-  cvFileUrl: z.string().url().optional(),
   message: z.string().default(""),
 });
 
@@ -121,14 +120,6 @@ export const mediaFileSchema = z.object({
   altTextEn: z.string().default(""),
 });
 
-export const mediaUploadSchema = z.object({
-  fileName: z.string().min(1),
-  dataUrl: z.string().min(1),
-  folder: z.string().default("general"),
-  altText: z.string().default(""),
-  altTextEn: z.string().default(""),
-});
-
 export type NewsItem = z.infer<typeof newsSchema>;
 export type NewsImage = z.infer<typeof newsImageSchema>;
 export type Project = z.infer<typeof projectSchema>;
@@ -138,4 +129,3 @@ export type ConsultationRequest = z.infer<typeof consultationSchema>;
 export type ProjectImage = z.infer<typeof projectImageSchema>;
 export type JobApplication = z.infer<typeof jobApplicationSchema>;
 export type MediaFile = z.infer<typeof mediaFileSchema>;
-export type MediaUpload = z.infer<typeof mediaUploadSchema>;

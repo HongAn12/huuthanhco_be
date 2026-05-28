@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import multer from "multer";
 import { Router } from "express";
 import { z } from "zod";
 import { logActivity } from "../../lib/activity-log.js";
 import { asyncHandler } from "../../lib/async-handler.js";
+import { imageUpload, MAX_IMAGE_FILES, verifyImageUpload } from "../../lib/image-upload.js";
 import { uploadToR2 } from "../../lib/r2.js";
-import { requireAuth, requireRole } from "../../middlewares/auth.middleware.js";
+import { requireAuth, requirePermission } from "../../middlewares/auth.middleware.js";
 import { newsImageSchema, newsSchema } from "../../validators.js";
 import {
   addNewsImage,
@@ -18,11 +18,6 @@ import {
 import { deleteNews, getNews, listNews, upsertNews } from "./news.repository.js";
 
 export const newsRouter = Router();
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 },
-});
 
 const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -43,19 +38,19 @@ newsRouter.get("/:idOrSlug", asyncHandler(async (req, res) => {
 }));
 
 // Admin
-newsRouter.post("/", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
+newsRouter.post("/", requireAuth, requirePermission("content:write"), asyncHandler(async (req, res) => {
   const item = await upsertNews(newsSchema.parse({ ...req.body, id: randomUUID() }));
   void logActivity({ req, action: "create", module: "news", targetId: item.id, description: item.title });
   res.status(201).json(item);
 }));
 
-newsRouter.put("/:id", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
+newsRouter.put("/:id", requireAuth, requirePermission("content:write"), asyncHandler(async (req, res) => {
   const item = await upsertNews(newsSchema.parse({ ...req.body, id: req.params["id"] }));
   void logActivity({ req, action: "update", module: "news", targetId: item.id, description: item.title });
   res.json(item);
 }));
 
-newsRouter.delete("/:id", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
+newsRouter.delete("/:id", requireAuth, requirePermission("content:write"), asyncHandler(async (req, res) => {
   const id = req.params["id"] as string;
   const deleted = await deleteNews(id);
   if (deleted) void logActivity({ req, action: "delete", module: "news", targetId: id });
@@ -68,7 +63,7 @@ newsRouter.get("/:id/images", asyncHandler(async (req, res) => {
   res.json(await listNewsImages(req.params["id"] as string));
 }));
 
-newsRouter.post("/:id/images", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
+newsRouter.post("/:id/images", requireAuth, requirePermission("content:write"), asyncHandler(async (req, res) => {
   const newsId = req.params["id"] as string;
   const data = newsImageSchema.parse(req.body);
   const image = await addNewsImage(newsId, data);
@@ -77,7 +72,7 @@ newsRouter.post("/:id/images", requireAuth, requireRole("editor"), asyncHandler(
 }));
 
 // Reorder đặt trước /:imageId để không bị match nhầm
-newsRouter.patch("/:id/images/reorder", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
+newsRouter.patch("/:id/images/reorder", requireAuth, requirePermission("content:write"), asyncHandler(async (req, res) => {
   const newsId = req.params["id"] as string;
   const { ids } = z.object({ ids: z.array(z.string().uuid()) }).parse(req.body);
   const result = await reorderNewsImages(newsId, ids);
@@ -89,8 +84,8 @@ newsRouter.patch("/:id/images/reorder", requireAuth, requireRole("editor"), asyn
 newsRouter.post(
   "/:id/images/upload",
   requireAuth,
-  requireRole("editor"),
-  upload.array("files", 20),
+  requirePermission("content:write"),
+  imageUpload.array("files", MAX_IMAGE_FILES),
   asyncHandler(async (req, res) => {
     const newsId = req.params["id"] as string;
     const files = req.files as Express.Multer.File[];
@@ -99,8 +94,9 @@ newsRouter.post(
       return;
     }
 
+    const verifiedFiles = files.map(verifyImageUpload);
     const uploadResults = await Promise.allSettled(
-      files.map((file) => uploadToR2(file.buffer, file.originalname, file.mimetype, "news"))
+      verifiedFiles.map((file) => uploadToR2(file.buffer, file.fileName, file.mimeType, "news"))
     );
 
     const succeeded = uploadResults
@@ -118,7 +114,7 @@ newsRouter.post(
   })
 );
 
-newsRouter.put("/:id/images/:imageId", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
+newsRouter.put("/:id/images/:imageId", requireAuth, requirePermission("content:write"), asyncHandler(async (req, res) => {
   const imageId = req.params["imageId"] as string;
   const data = newsImageSchema.partial().parse(req.body);
   const updated = await updateNewsImage(imageId, data);
@@ -129,7 +125,7 @@ newsRouter.put("/:id/images/:imageId", requireAuth, requireRole("editor"), async
   }
 }));
 
-newsRouter.delete("/:id/images/:imageId", requireAuth, requireRole("editor"), asyncHandler(async (req, res) => {
+newsRouter.delete("/:id/images/:imageId", requireAuth, requirePermission("content:write"), asyncHandler(async (req, res) => {
   const imageId = req.params["imageId"] as string;
   const deleted = await deleteNewsImage(imageId);
   if (deleted) void logActivity({ req, action: "delete", module: "news-images", targetId: imageId });
