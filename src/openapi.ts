@@ -257,7 +257,7 @@ export const openApiDocument = {
     "/api/auth/login": {
       post: {
         tags: ["Auth"],
-        summary: "Login",
+        summary: "Login (access token valid for 8 hours by default)",
         requestBody: {
           required: true,
           content: { "application/json": { schema: { $ref: "#/components/schemas/LoginRequest" } } },

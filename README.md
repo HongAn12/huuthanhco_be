@@ -18,6 +18,12 @@ API chạy mặc định ở:
 http://localhost:4000
 ```
 
+Mỗi access token đăng nhập có hiệu lực 8 giờ theo mặc định. Có thể thay đổi bằng:
+
+```env
+JWT_ACCESS_TTL_HOURS=8
+```
+
 Swagger UI:
 
 ```txt

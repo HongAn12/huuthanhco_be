@@ -58,7 +58,7 @@ export function verifyPassword(plain: string, hash: string) {
 
 export function signAccessToken(user: AdminUser) {
   const payload: AuthPayload = { sub: user.id, role: user.role };
-  return jwt.sign(payload, env.jwtSecret, { expiresIn: "15m" });
+  return jwt.sign(payload, env.jwtSecret, { expiresIn: env.jwtAccessTtlSeconds });
 }
 
 export async function createRefreshToken(userId: string) {
