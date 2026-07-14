@@ -42,8 +42,8 @@ export const openApiDocument = {
         type: "object",
         required: ["email", "password"],
         properties: {
-          email: { type: "string", format: "email", example: "admin@huuthanhco.com" },
-          password: { type: "string", example: "Admin@2024!!" },
+          email: { type: "string", format: "email", example: "admin@example.com" },
+          password: { type: "string", format: "password", writeOnly: true, example: "your-password" },
         },
       },
       AuthTokens: {
@@ -79,8 +79,20 @@ export const openApiDocument = {
           galleryImages: { type: "array", items: { type: "string" } },
           excerpt: { type: "string" },
           excerptEn: { type: "string" },
-          content: { type: "string" },
-          contentEn: { type: "string" },
+          content: {
+            type: "string",
+            format: "html",
+            maxLength: 1000000,
+            description: "Nội dung Rich Text HTML đã được backend sanitize. Hỗ trợ tiêu đề, định dạng chữ, danh sách, trích dẫn, liên kết, ảnh và bảng.",
+            example: "<h2>Tiêu đề nội dung</h2><p>Đoạn văn có <strong>chữ đậm</strong>.</p>",
+          },
+          contentEn: {
+            type: "string",
+            format: "html",
+            maxLength: 1000000,
+            description: "English Rich Text HTML; sanitized by the backend.",
+            example: "<h2>Article heading</h2><p>A paragraph with <strong>bold text</strong>.</p>",
+          },
         },
       },
       NewsImage: {

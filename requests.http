@@ -8,6 +8,8 @@
 ### Paste access token here after login:
 @token = PASTE_ACCESS_TOKEN_HERE
 @refreshToken = PASTE_REFRESH_TOKEN_HERE
+@adminEmail = PASTE_ADMIN_EMAIL_HERE
+@adminPassword = PASTE_ADMIN_PASSWORD_HERE
 
 
 # ─── AUTH ────────────────────────────────────────────────────
@@ -18,8 +20,8 @@ POST {{base}}/auth/login
 Content-Type: application/json
 
 {
-  "email": "admin@huuthanhco.com",
-  "password": "Admin@2024!!"
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
 }
 
 ###
@@ -114,8 +116,8 @@ Content-Type: application/json
   "thumbnail": "https://example.com/image.jpg",
   "excerpt": "Tóm tắt bài viết...",
   "excerptEn": "Article excerpt...",
-  "content": "<p>Nội dung đầy đủ bài viết</p>",
-  "contentEn": "<p>Full article content</p>"
+  "content": "<h2>Tiêu đề nội dung</h2><p>Nội dung có <strong>chữ đậm</strong> và <a href=\"https://example.com\" target=\"_blank\">liên kết</a>.</p><ul><li>Ý chính thứ nhất</li><li>Ý chính thứ hai</li></ul><blockquote>Trích dẫn nổi bật</blockquote>",
+  "contentEn": "<h2>Article heading</h2><p>Content with <strong>bold text</strong>.</p>"
 }
 
 ###

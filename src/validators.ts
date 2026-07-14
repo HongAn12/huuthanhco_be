@@ -1,4 +1,10 @@
 import { z } from "zod";
+import { MAX_RICH_TEXT_LENGTH, sanitizeRichText } from "./lib/rich-text.js";
+
+const richTextSchema = z.string()
+  .max(MAX_RICH_TEXT_LENGTH, "Rich text content is too large")
+  .transform(sanitizeRichText)
+  .default("");
 
 export const newsSchema = z.object({
   id: z.string().uuid(),
@@ -12,8 +18,8 @@ export const newsSchema = z.object({
   galleryImages: z.array(z.string().min(1)).default([]),
   excerpt: z.string().default(""),
   excerptEn: z.string().default(""),
-  content: z.string().default(""),
-  contentEn: z.string().default(""),
+  content: richTextSchema,
+  contentEn: richTextSchema,
 });
 
 export const newsImageSchema = z.object({
