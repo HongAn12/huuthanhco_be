@@ -4,3 +4,6 @@ dist
 .DS_Store
 npm-debug.log*
 uploads
+
+# Local frontend handoff prompt (not part of the backend repository)
+docs/FE_TIPTAP_NEWS_PROMPT.md
