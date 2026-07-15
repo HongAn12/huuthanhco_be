@@ -83,7 +83,7 @@ export const openApiDocument = {
             type: "string",
             format: "html",
             maxLength: 1000000,
-            description: "Nội dung Rich Text HTML đã được backend sanitize. Hỗ trợ tiêu đề, định dạng chữ, danh sách, trích dẫn, liên kết, ảnh và bảng.",
+            description: "Nội dung Rich Text HTML đã được backend sanitize. Hỗ trợ tiêu đề, định dạng chữ, danh sách, trích dẫn, liên kết, ảnh, bảng và Vimeo node an toàn.",
             example: "<h2>Tiêu đề nội dung</h2><p>Đoạn văn có <strong>chữ đậm</strong>.</p>",
           },
           contentEn: {
@@ -921,6 +921,48 @@ export const openApiDocument = {
           },
           400: { description: "Không có file nào được gửi lên" },
           401: { description: "Chưa đăng nhập" },
+        },
+      },
+    },
+    "/api/media/vimeo/normalize": {
+      post: {
+        tags: ["Media"],
+        summary: "Chuẩn hóa URL Vimeo để chèn vào Rich Text",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["url"],
+                properties: {
+                  url: { type: "string", format: "uri", example: "https://vimeo.com/123456789" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "Vimeo URL hợp lệ và đã chuẩn hóa",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    provider: { type: "string", enum: ["vimeo"] },
+                    videoId: { type: "string", example: "123456789" },
+                    hash: { type: "string", description: "Hash của video unlisted nếu có" },
+                    playerUrl: { type: "string", format: "uri" },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: "URL Vimeo không hợp lệ" },
+          401: { description: "Chưa đăng nhập" },
+          403: { description: "Không có quyền chỉnh sửa nội dung" },
         },
       },
     },

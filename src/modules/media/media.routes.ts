@@ -4,11 +4,22 @@ import { logActivity } from "../../lib/activity-log.js";
 import { asyncHandler } from "../../lib/async-handler.js";
 import { imageUpload, MAX_IMAGE_FILES, sanitizeStorageFolder, verifyImageUpload } from "../../lib/image-upload.js";
 import { uploadToR2 } from "../../lib/r2.js";
+import { normalizeVimeoUrl } from "../../lib/vimeo.js";
 import { requireAuth, requirePermission } from "../../middlewares/auth.middleware.js";
 import { mediaFileSchema } from "../../validators.js";
 import { createMedia, deleteMedia, getMedia, listMedia, updateMedia } from "./media.repository.js";
 
 export const mediaRouter = Router();
+
+mediaRouter.post(
+  "/vimeo/normalize",
+  requireAuth,
+  requirePermission("content:write"),
+  asyncHandler(async (req, res) => {
+    const { url } = z.object({ url: z.string().url().max(2048) }).parse(req.body);
+    res.json(normalizeVimeoUrl(url));
+  })
+);
 
 // POST /api/media/upload — upload nhiều ảnh lên R2 song song
 mediaRouter.post(

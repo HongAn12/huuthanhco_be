@@ -47,3 +47,24 @@ test("hardens external links and lazy-loads images", () => {
   assert.match(content, /rel="noopener noreferrer"/);
   assert.match(content, /loading="lazy"/);
 });
+
+test("preserves normalized Vimeo nodes without allowing arbitrary iframes", () => {
+  const content = parseContent(
+    '<figure data-provider="vimeo" data-video-id="123456789" data-video-hash="abcDEF12">' +
+    '<iframe src="https://evil.example"></iframe><figcaption>Video caption</figcaption></figure>'
+  );
+
+  assert.match(content, /data-provider="vimeo"/);
+  assert.match(content, /data-video-id="123456789"/);
+  assert.match(content, /data-video-hash="abcDEF12"/);
+  assert.match(content, /<figcaption>Video caption<\/figcaption>/);
+  assert.doesNotMatch(content, /iframe|evil\.example/i);
+});
+
+test("strips invalid Vimeo metadata", () => {
+  const content = parseContent(
+    '<figure data-provider="vimeo" data-video-id="javascript:alert(1)"><figcaption>Invalid</figcaption></figure>'
+  );
+
+  assert.doesNotMatch(content, /data-provider|data-video-id|javascript:/i);
+});

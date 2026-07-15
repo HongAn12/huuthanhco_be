@@ -1,4 +1,5 @@
 import sanitizeHtml from "sanitize-html";
+import { isVimeoHash, isVimeoVideoId } from "./vimeo.js";
 
 export const MAX_RICH_TEXT_LENGTH = 1_000_000;
 
@@ -20,6 +21,7 @@ export function sanitizeRichText(value: string): string {
       "*": ["class", "style"],
       a: ["href", "target", "title", "rel"],
       img: ["src", "alt", "title", "width", "height", "loading"],
+      figure: ["class", "data-provider", "data-video-id", "data-video-hash"],
       ol: ["start", "type"],
       li: ["value"],
       th: ["colspan", "rowspan", "scope"],
@@ -52,6 +54,22 @@ export function sanitizeRichText(value: string): string {
         tagName: "img",
         attribs: { ...attribs, loading: "lazy" },
       }),
+      figure: (_tagName, attribs) => {
+        if (attribs["data-provider"] !== "vimeo" || !isVimeoVideoId(attribs["data-video-id"])) {
+          return { tagName: "figure", attribs: { class: attribs.class ?? "" } };
+        }
+
+        const hash = attribs["data-video-hash"];
+        return {
+          tagName: "figure",
+          attribs: {
+            class: "news-video news-video--vimeo",
+            "data-provider": "vimeo",
+            "data-video-id": attribs["data-video-id"],
+            ...(isVimeoHash(hash) ? { "data-video-hash": hash } : {}),
+          },
+        };
+      },
     },
   }).trim();
 }
