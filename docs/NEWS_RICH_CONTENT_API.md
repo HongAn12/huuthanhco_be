@@ -62,6 +62,13 @@ https://vimeo.com/123456789/abcDEF12
 https://player.vimeo.com/video/123456789?h=abcDEF12
 ```
 
+Ràng buộc validation:
+
+- chỉ nhận HTTPS trên `vimeo.com`, `www.vimeo.com` hoặc `player.vimeo.com`;
+- `videoId` gồm 6–12 chữ số;
+- hash gồm 6–64 ký tự chữ, số, `_` hoặc `-`;
+- backend tự tạo `playerUrl`, không nhận iframe/player hostname tùy ý từ client.
+
 ## Vimeo node trong content
 
 Frontend lưu node sau vào HTML:

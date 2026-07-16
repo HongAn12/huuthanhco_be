@@ -11,11 +11,11 @@ test("normalizes public Vimeo URLs", () => {
 });
 
 test("normalizes unlisted and player Vimeo URLs", () => {
-  assert.deepEqual(normalizeVimeoUrl("https://vimeo.com/123456789/abcDEF12"), {
+  assert.deepEqual(normalizeVimeoUrl("https://vimeo.com/123456789/abc_DEF-12"), {
     provider: "vimeo",
     videoId: "123456789",
-    hash: "abcDEF12",
-    playerUrl: "https://player.vimeo.com/video/123456789?h=abcDEF12",
+    hash: "abc_DEF-12",
+    playerUrl: "https://player.vimeo.com/video/123456789?h=abc_DEF-12",
   });
   assert.equal(
     normalizeVimeoUrl("https://player.vimeo.com/video/123456789?h=abcDEF12").videoId,
@@ -25,5 +25,11 @@ test("normalizes unlisted and player Vimeo URLs", () => {
 
 test("rejects non-Vimeo and malformed URLs", () => {
   assert.throws(() => normalizeVimeoUrl("https://example.com/123456789"), /Vimeo/);
+  assert.throws(() => normalizeVimeoUrl("https://evilvimeo.com/123456789"), /Vimeo/);
   assert.throws(() => normalizeVimeoUrl("https://vimeo.com/not-a-video"), /Vimeo/);
+  assert.throws(() => normalizeVimeoUrl("https://vimeo.com/12345"), /Vimeo/);
+  assert.throws(() => normalizeVimeoUrl("https://vimeo.com/123456789/bad!hash"), /Vimeo/);
+  assert.throws(() => normalizeVimeoUrl("https://player.vimeo.com/123456789"), /Vimeo/);
+  assert.throws(() => normalizeVimeoUrl("https://vimeo.com/123456789/hash123/extra"), /Vimeo/);
+  assert.throws(() => normalizeVimeoUrl("http://vimeo.com/123456789"), /Vimeo/);
 });
