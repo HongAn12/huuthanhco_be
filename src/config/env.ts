@@ -2,7 +2,12 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const defaultCorsOrigins = ["http://localhost:3000", "https://huuthanhco.vercel.app"];
+const defaultCorsOrigins = [
+  "http://localhost:3000",
+  "https://huuthanhco.vercel.app",
+  "https://huuthanhco.com",
+  "https://www.huuthanhco.com",
+];
 const configuredCorsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean)
   : [];

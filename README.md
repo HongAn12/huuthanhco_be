@@ -96,7 +96,7 @@ Khi deploy production:
 NEXT_PUBLIC_CMS_API_URL=https://huuthanhco.onrender.com
 
 # Backend Render
-CORS_ORIGIN=https://huuthanhco.vercel.app
+CORS_ORIGIN=https://huuthanhco.com,https://www.huuthanhco.com,https://huuthanhco.vercel.app
 ```
 
 ## Kết nối Neon PostgreSQL
